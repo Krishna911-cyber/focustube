@@ -80,9 +80,9 @@ const FocusTubeCamera = {
   screenSamples: [],
   phoneSamples: [],
   calibrationSamples: [], // backward compatibility
-  baseline: { yaw: 0, pitch: 0, gazeDown: 0 },
-  phonePose: { yaw: 0, pitch: 0, gazeDown: 0 },
-  dir: 1,
+  baseline: { yaw: 0, pitch: 0, gazeDown: 0, geomRatio: 0.55 },
+  phonePose: { yaw: 0, pitch: -20, gazeDown: 0.6, geomRatio: 0.75 },
+  dir: -1, // Default -1 for Three.js XYZ Euler where looking down lowers pitch
   range: 15,
   isCalibrated: false,
   calibrationError: null,
@@ -98,6 +98,8 @@ const FocusTubeCamera = {
   currentYaw: 0,
   currentPitch: 0,
   currentGazeDown: 0,
+  currentGazeUp: 0,
+  currentGeomPitchRatio: 0.55,
   currentDownness: 0,
   isPhoneDetected: false,
   phoneScore: 0,
@@ -133,15 +135,19 @@ const FocusTubeCamera = {
         const savedBaseline = localStorage.getItem('focustube_camera_baseline');
         if (savedBaseline) {
           const parsed = JSON.parse(savedBaseline);
-          if (parsed.baseline && typeof parsed.baseline.pitch === 'number') {
+          // Only accept valid two-pose calibrated settings with dir and range
+          if (parsed && parsed.baseline && typeof parsed.baseline.pitch === 'number' && typeof parsed.dir === 'number' && typeof parsed.range === 'number') {
             this.baseline = parsed.baseline;
-            this.phonePose = parsed.phonePose || { yaw: 0, pitch: 0, gazeDown: 0 };
-            this.dir = typeof parsed.dir === 'number' ? parsed.dir : 1;
-            this.range = typeof parsed.range === 'number' ? parsed.range : 15;
+            this.phonePose = parsed.phonePose || { yaw: 0, pitch: -20, gazeDown: 0.6, geomRatio: 0.75 };
+            this.dir = parsed.dir;
+            this.range = parsed.range;
             this.isCalibrated = true;
-          } else if (typeof parsed.pitch === 'number' && typeof parsed.yaw === 'number') {
-            this.baseline = parsed;
-            this.isCalibrated = true;
+          } else {
+            // Purge legacy/uncalibrated data to guarantee fresh two-pose calibration
+            localStorage.removeItem('focustube_camera_baseline');
+            this.isCalibrated = false;
+            this.dir = -1;
+            this.range = 15;
           }
         }
       }

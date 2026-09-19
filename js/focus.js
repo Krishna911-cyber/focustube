@@ -166,16 +166,24 @@ const FocusTubeFocus = {
   },
 
   /**
-   * Exit-Intent Banner: non-blocking warning when mouse leaves through the top edge
+   * Exit-Intent Banner: non-blocking warning when mouse heads towards exit or leaves page
+   * Triggers:
+   * - Mouse entering top 30px while moving upward (consecutive clientY comparison)
+   * - Document mouseleave with clientY <= 0
+   * - Document mouseout through top edge (relatedTarget null, clientY <= 0)
+   * Must only fire when departure alerts toggle is ON and session is running.
+   * 10s cooldown, NOT logged as a distraction.
    */
-  showExitIntentBanner() {
-    if (!this.isFocusBlockRunning()) return;
+  showExitIntentBanner(trigger = 'unknown') {
+    if (!this.notificationsEnabled || !this.isFocusBlockRunning()) return;
 
     const now = Date.now();
     if (this.lastExitIntentTime && (now - this.lastExitIntentTime < 10000)) {
       return; // 10-second cooldown
     }
     this.lastExitIntentTime = now;
+
+    console.log(`[DepartureAlert] Exit-intent banner displayed (trigger: ${trigger}). Not logged as a distraction.`);
 
     let banner = this.elements.exitBanner || (typeof document !== 'undefined' ? document.getElementById('exit-intent-banner') : null);
     if (!banner && typeof document !== 'undefined') {
@@ -228,6 +236,7 @@ const FocusTubeFocus = {
     }
     document.title = '⚠️ Come back to your session!';
     this.isTabTitleAlertActive = true;
+    console.log('[DepartureAlert] Tab title alert activated: "⚠️ Come back to your session!"');
   },
 
   restoreTabTitle() {
@@ -235,6 +244,7 @@ const FocusTubeFocus = {
     if (this.isTabTitleAlertActive) {
       document.title = this.originalTitle || 'Study Room — FocusTube';
       this.isTabTitleAlertActive = false;
+      console.log('[DepartureAlert] Tab title restored to original:', document.title);
     }
   },
 
@@ -269,6 +279,7 @@ const FocusTubeFocus = {
         body: 'Your session is paused. Come back to continue.',
         tag: 'focustube-session-paused'
       });
+      console.log('[DepartureAlert] System notification sent: "Your session is paused. Come back to continue."');
     } catch (err) {
       console.warn('[Focus] Failed to show Notification:', err);
     }
@@ -277,17 +288,46 @@ const FocusTubeFocus = {
   bindEvents() {
     if (typeof document === 'undefined' || typeof window === 'undefined') return;
 
-    // 1. Exit-Intent Warning Banner: mouse leaves through top edge
-    document.addEventListener('mouseout', (e) => {
-      if (!this.isFocusBlockRunning()) return;
-      if (!e.relatedTarget && e.clientY <= 0) {
-        this.showExitIntentBanner();
+    // 1. Exit-Intent Warning: Mouse enters top 30px while moving upward
+    let lastClientY = null;
+    document.addEventListener('mousemove', (e) => {
+      if (!this.notificationsEnabled || !this.isFocusBlockRunning()) {
+        lastClientY = typeof e.clientY === 'number' ? e.clientY : null;
+        return;
+      }
+      const currentY = e.clientY;
+      if (typeof currentY === 'number' && lastClientY !== null) {
+        // Enters top 30px of viewport while moving upward (currentY < lastClientY)
+        if (currentY <= 30 && currentY < lastClientY) {
+          console.log(`[DepartureAlert] Mouse entered top 30px moving upward (y=${currentY}, lastY=${lastClientY})`);
+          this.showExitIntentBanner('mousemove_upward_top30');
+        }
+      }
+      lastClientY = currentY;
+    });
+
+    // 2. Document mouseleave with clientY <= 0
+    document.addEventListener('mouseleave', (e) => {
+      if (!this.notificationsEnabled || !this.isFocusBlockRunning()) return;
+      if (typeof e.clientY === 'number' && e.clientY <= 0) {
+        console.log(`[DepartureAlert] Mouse left document top edge (clientY=${e.clientY})`);
+        this.showExitIntentBanner('mouseleave_top');
       }
     });
 
-    // 2. Beforeunload Leave-Site Dialog (active only while session is running)
+    // 3. Document mouseout leaving through top edge (no relatedTarget and clientY <= 0)
+    document.addEventListener('mouseout', (e) => {
+      if (!this.notificationsEnabled || !this.isFocusBlockRunning()) return;
+      if (!e.relatedTarget && typeof e.clientY === 'number' && e.clientY <= 0) {
+        console.log(`[DepartureAlert] Mouseout through viewport top edge (clientY=${e.clientY})`);
+        this.showExitIntentBanner('mouseout_top');
+      }
+    });
+
+    // 4. Beforeunload Leave-Site Dialog (active only while session is running)
     window.addEventListener('beforeunload', (e) => {
       if (this.sessionActive && this.isFocusBlockRunning()) {
+        console.log('[DepartureAlert] beforeunload leave-site dialog triggered');
         e.preventDefault();
         e.returnValue = '';
         return '';

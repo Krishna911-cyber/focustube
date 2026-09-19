@@ -21,14 +21,17 @@
 // Core Thresholds & Timing Constants
 // ============================================================================
 const YAW_THRESHOLD_DEG = 25;               // Degrees off-center for head yaw
-const PITCH_DOWN_THRESHOLD_DEG = 15;         // Degrees below baseline pitch for looking down
+const PITCH_DOWN_THRESHOLD_DEG = 15;         // Degrees below baseline pitch for looking down (fallback)
 const PITCH_SLIGHT_DOWN_DEG = 5;             // Degrees below baseline pitch for slight head down
 const GAZE_DOWN_DELTA_THRESHOLD = 0.3;       // GazeDown delta above baseline (0.0 - 1.0)
 const PHONE_SCORE_THRESHOLD = 0.4;           // Minimum confidence score for cell phone detection
 const FACE_AWAY_DURATION_MS = 1500;          // 1.5s away before triggering face_away distraction
 const LOOKING_DOWN_DURATION_MS = 3000;       // 3.0s looking down before triggering looking_down distraction
 const PHONE_VISIBLE_DURATION_MS = 1500;      // 1.5s phone visible with head down before triggering phone_visible distraction
-const CALIBRATION_DURATION_MS = 3000;        // 3.0s initial baseline calibration duration
+const CALIBRATION_DURATION_MS = 3000;        // 3.0s duration per step
+const CALIBRATION_STEP_DURATION_MS = 3000;   // 3.0s per step (Step 1: Screen, Step 2: Phone)
+const MIN_CALIBRATION_RANGE_DEG = 3;         // Minimum degrees between poses to succeed
+const DOWN_THRESHOLD_NORMALIZED = 0.6;       // Normalized downness threshold for LOOKING DOWN
 const TARGET_FPS = 6;                        // FaceLandmarker detection cycle FPS (~166ms)
 const OBJECT_DETECTOR_FPS = 2;               // ObjectDetector detection cycle FPS (~500ms)
 
@@ -53,6 +56,9 @@ const FocusTubeCamera = {
   LOOKING_DOWN_DURATION_MS,
   PHONE_VISIBLE_DURATION_MS,
   CALIBRATION_DURATION_MS,
+  CALIBRATION_STEP_DURATION_MS,
+  MIN_CALIBRATION_RANGE_DEG,
+  DOWN_THRESHOLD_NORMALIZED,
   TARGET_FPS,
   OBJECT_DETECTOR_FPS,
 
@@ -67,11 +73,19 @@ const FocusTubeCamera = {
   lastInferenceTime: 0,
   lastObjectInferenceTime: 0,
 
-  // Calibration state
+  // Two-Pose Calibration state
   isCalibrating: false,
+  calibrationStep: 1, // 1 = screen, 2 = phone
   calibrationStartTime: null,
-  calibrationSamples: [],
+  screenSamples: [],
+  phoneSamples: [],
+  calibrationSamples: [], // backward compatibility
   baseline: { yaw: 0, pitch: 0, gazeDown: 0 },
+  phonePose: { yaw: 0, pitch: 0, gazeDown: 0 },
+  dir: 1,
+  range: 15,
+  isCalibrated: false,
+  calibrationError: null,
 
   // Candidate timers for distraction classification
   faceAwayStartTime: null,
@@ -84,6 +98,7 @@ const FocusTubeCamera = {
   currentYaw: 0,
   currentPitch: 0,
   currentGazeDown: 0,
+  currentDownness: 0,
   isPhoneDetected: false,
   phoneScore: 0,
   isTakingNotes: false,
@@ -118,8 +133,15 @@ const FocusTubeCamera = {
         const savedBaseline = localStorage.getItem('focustube_camera_baseline');
         if (savedBaseline) {
           const parsed = JSON.parse(savedBaseline);
-          if (typeof parsed.pitch === 'number' && typeof parsed.yaw === 'number') {
+          if (parsed.baseline && typeof parsed.baseline.pitch === 'number') {
+            this.baseline = parsed.baseline;
+            this.phonePose = parsed.phonePose || { yaw: 0, pitch: 0, gazeDown: 0 };
+            this.dir = typeof parsed.dir === 'number' ? parsed.dir : 1;
+            this.range = typeof parsed.range === 'number' ? parsed.range : 15;
+            this.isCalibrated = true;
+          } else if (typeof parsed.pitch === 'number' && typeof parsed.yaw === 'number') {
             this.baseline = parsed;
+            this.isCalibrated = true;
           }
         }
       }
@@ -427,15 +449,22 @@ const FocusTubeCamera = {
   },
 
   /**
-   * Starts a 3-second baseline calibration phase
+   * Starts a two-pose guided calibration phase:
+   * Step 1: "Look at your screen" for 3 seconds
+   * Step 2: "Now look down at your phone" for 3 seconds
    */
   startCalibration() {
     this.isCalibrating = true;
+    this.isCalibrated = false;
+    this.calibrationStep = 1;
     this.calibrationStartTime = Date.now();
-    this.calibrationSamples = [];
+    this.screenSamples = [];
+    this.phoneSamples = [];
+    this.calibrationSamples = []; // backward compatibility
     this.faceAwayStartTime = null;
     this.lookingDownStartTime = null;
     this.phoneStartTime = null;
+    this.calibrationError = null;
 
     this.showCalibrationUI();
     if (this.elements.recalibrateBtn) {
@@ -445,69 +474,161 @@ const FocusTubeCamera = {
       this.elements.hudStatusPill.className = 'camera-status-pill calibrating';
       this.elements.hudStatusPill.textContent = 'CALIBRATING...';
     }
-    console.log('[Camera] Calibration started: Look at the screen for 3 seconds');
+    this.updateCalibrationProgress(0, 'Look at your screen (3s)...');
+    console.log('[Camera] Two-pose calibration started: Step 1 - Look at your screen for 3 seconds');
   },
 
   recordCalibrationSample(sample) {
-    this.calibrationSamples.push(sample);
-    const elapsed = Date.now() - this.calibrationStartTime;
-    const progress = Math.min(100, Math.round((elapsed / CALIBRATION_DURATION_MS) * 100));
-    this.updateCalibrationProgress(progress);
+    if (!this.isCalibrating) return;
 
-    if (elapsed >= CALIBRATION_DURATION_MS) {
-      this.finishCalibration();
+    const now = Date.now();
+    const elapsed = now - this.calibrationStartTime;
+
+    if (this.calibrationStep === 1) {
+      this.screenSamples.push(sample);
+      this.calibrationSamples.push(sample); // backward compat
+      const stepElapsed = elapsed;
+      const progress = Math.min(50, Math.round((stepElapsed / CALIBRATION_STEP_DURATION_MS) * 50));
+      const secondsLeft = Math.max(1, Math.ceil((CALIBRATION_STEP_DURATION_MS - stepElapsed) / 1000));
+      this.updateCalibrationProgress(progress, `Look at your screen (${secondsLeft}s)...`);
+
+      if (stepElapsed >= CALIBRATION_STEP_DURATION_MS) {
+        console.log('[Camera] Step 1 complete. Starting Step 2: Now look down at your phone for 3 seconds');
+        this.calibrationStep = 2;
+        this.calibrationStartTime = now;
+        this.updateCalibrationProgress(50, `Now look down at your phone (3s)...`);
+      }
+    } else if (this.calibrationStep === 2) {
+      this.phoneSamples.push(sample);
+      const stepElapsed = elapsed;
+      const progress = Math.min(100, 50 + Math.round((stepElapsed / CALIBRATION_STEP_DURATION_MS) * 50));
+      const secondsLeft = Math.max(1, Math.ceil((CALIBRATION_STEP_DURATION_MS - stepElapsed) / 1000));
+      this.updateCalibrationProgress(progress, `Now look down at your phone (${secondsLeft}s)...`);
+
+      if (stepElapsed >= CALIBRATION_STEP_DURATION_MS) {
+        this.finishCalibration();
+      }
     }
   },
 
   finishCalibration() {
     this.isCalibrating = false;
-    if (this.calibrationSamples.length > 0) {
-      const count = this.calibrationSamples.length;
-      const sumYaw = this.calibrationSamples.reduce((s, x) => s + x.yaw, 0);
-      const sumPitch = this.calibrationSamples.reduce((s, x) => s + x.pitch, 0);
-      const sumGaze = this.calibrationSamples.reduce((s, x) => s + x.gazeDown, 0);
 
-      this.baseline = {
-        yaw: Math.round((sumYaw / count) * 10) / 10,
-        pitch: Math.round((sumPitch / count) * 10) / 10,
-        gazeDown: Math.round((sumGaze / count) * 100) / 100
+    const calcAverage = (samples, fallback = { yaw: 0, pitch: 0, gazeDown: 0 }) => {
+      if (!samples || samples.length === 0) return fallback;
+      const count = samples.length;
+      return {
+        yaw: Math.round((samples.reduce((s, x) => s + x.yaw, 0) / count) * 10) / 10,
+        pitch: Math.round((samples.reduce((s, x) => s + x.pitch, 0) / count) * 10) / 10,
+        gazeDown: Math.round((samples.reduce((s, x) => s + x.gazeDown, 0) / count) * 100) / 100
       };
+    };
+
+    // Calculate Step 1 average (screen pose baseline)
+    if (this.screenSamples.length > 0) {
+      this.baseline = calcAverage(this.screenSamples);
+    } else if (this.calibrationSamples.length > 0) {
+      this.baseline = calcAverage(this.calibrationSamples);
     } else {
       this.baseline = { yaw: 0, pitch: 0, gazeDown: 0 };
     }
 
+    // Calculate Step 2 average (phone pose)
+    if (this.phoneSamples.length > 0) {
+      this.phonePose = calcAverage(this.phoneSamples);
+    } else {
+      this.phonePose = { yaw: this.baseline.yaw, pitch: this.baseline.pitch, gazeDown: this.baseline.gazeDown };
+    }
+
+    const pitchDiff = this.phonePose.pitch - this.baseline.pitch;
+    const rawRange = Math.abs(pitchDiff);
+
+    // Rule 5: If calibration fails (the two poses are too similar, range < 3 degrees)
+    if (rawRange < MIN_CALIBRATION_RANGE_DEG) {
+      this.isCalibrated = false;
+      this.calibrationError = "Calibration didn't detect a difference, try again";
+      console.warn(`[Camera] Calibration failed: range ${rawRange.toFixed(1)}° < ${MIN_CALIBRATION_RANGE_DEG}°. Tracking disabled.`);
+      this.showCalibrationFailure(this.calibrationError);
+      return;
+    }
+
+    // Learn the direction and range automatically:
+    // dir = sign(phonePose.pitch - baseline.pitch), range = max(|phonePose.pitch - baseline.pitch|, 8)
+    this.dir = Math.sign(pitchDiff) || 1;
+    this.range = Math.max(rawRange, 8);
+    this.isCalibrated = true;
+    this.calibrationError = null;
+
     try {
       if (typeof localStorage !== 'undefined') {
-        localStorage.setItem('focustube_camera_baseline', JSON.stringify(this.baseline));
+        localStorage.setItem('focustube_camera_baseline', JSON.stringify({
+          baseline: this.baseline,
+          phonePose: this.phonePose,
+          dir: this.dir,
+          range: this.range
+        }));
       }
     } catch (e) {}
 
     this.hideCalibrationUI();
     if (this.elements.recalibrateBtn) {
       this.elements.recalibrateBtn.style.display = 'inline-flex';
+      this.elements.recalibrateBtn.innerHTML = `
+        <span class="material-symbols-outlined" style="font-size: 14px;">restart_alt</span>
+        <span>Recalibrate</span>
+      `;
     }
     if (this.elements.hudStatusPill) {
       this.elements.hudStatusPill.className = 'camera-status-pill focused';
       this.elements.hudStatusPill.textContent = 'ATTENTIVE';
     }
+    this.updateStatusUI('Active', 'secondary');
 
-    console.log('[Camera] Calibration complete! Baseline:', this.baseline);
+    console.log('[Camera] Calibration complete! Baseline:', this.baseline, 'PhonePose:', this.phonePose, `dir: ${this.dir}, range: ${this.range}°`);
+  },
+
+  showCalibrationFailure(message) {
+    this.isCalibrated = false;
+    this.updateStatusUI("Calibration didn't detect a difference, try again", 'warning');
+
+    if (this.elements.calibrationText) {
+      this.elements.calibrationText.textContent = message;
+    }
+    if (this.elements.calibrationProgress) {
+      this.elements.calibrationProgress.style.width = '0%';
+    }
+    if (this.elements.hudStatusPill) {
+      this.elements.hudStatusPill.className = 'camera-status-pill away';
+      this.elements.hudStatusPill.textContent = 'CALIBRATE FIRST';
+    }
+    if (this.elements.recalibrateBtn) {
+      this.elements.recalibrateBtn.style.display = 'inline-flex';
+      this.elements.recalibrateBtn.innerHTML = `
+        <span class="material-symbols-outlined" style="font-size: 14px;">restart_alt</span>
+        <span>Try again</span>
+      `;
+    }
+
+    setTimeout(() => {
+      if (!this.isCalibrated && !this.isCalibrating) {
+        this.hideCalibrationUI();
+      }
+    }, 3500);
   },
 
   showCalibrationUI() {
     if (this.elements.calibrationOverlay) {
       this.elements.calibrationOverlay.style.display = 'flex';
     }
-    this.updateCalibrationProgress(0);
+    this.updateCalibrationProgress(0, 'Look at your screen (3s)...');
   },
 
-  updateCalibrationProgress(pct) {
+  updateCalibrationProgress(pct, message) {
     if (this.elements.calibrationProgress) {
       this.elements.calibrationProgress.style.width = `${pct}%`;
     }
-    if (this.elements.calibrationText) {
-      const secondsLeft = Math.max(1, Math.ceil((CALIBRATION_DURATION_MS * (1 - pct / 100)) / 1000));
-      this.elements.calibrationText.textContent = `Look at the screen for ${secondsLeft}s...`;
+    if (this.elements.calibrationText && message) {
+      this.elements.calibrationText.textContent = message;
     }
   },
 
@@ -727,8 +848,16 @@ const FocusTubeCamera = {
       return;
     }
 
-    // Normal detection: Compare against baseline
-    const pitchBelowBaseline = this.baseline.pitch - this.currentPitch;
+    // If calibration failed or has not completed, keep tracking disabled
+    if (!this.isCalibrated) {
+      this.updateHUD(hasFace, false, false, false);
+      this.updateDebugOverlay();
+      return;
+    }
+
+    // Normal detection: Compute downness = ((pitch - baseline.pitch) * dir) / range
+    const pitchDelta = this.currentPitch - this.baseline.pitch;
+    this.currentDownness = Math.round(((pitchDelta * this.dir) / this.range) * 100) / 100;
     const gazeDownDelta = this.currentGazeDown - this.baseline.gazeDown;
     const absYawDelta = Math.abs(this.currentYaw - this.baseline.yaw);
 
@@ -736,14 +865,15 @@ const FocusTubeCamera = {
     const isFaceAwayCandidate = !hasFace || absYawDelta >= YAW_THRESHOLD_DEG;
 
     // Rule 2: Looking Down (disabled if taking notes)
-    // Triggered when pitch > 15° below baseline OR gazeDown > 0.3 above baseline with head slightly down (>5°)
+    // Downness > 0.6 OR gazeDown delta >= 0.3 combined with slight down (downness > 0.3)
+    const isGazeLookingDown = gazeDownDelta >= GAZE_DOWN_DELTA_THRESHOLD && this.currentDownness > 0.3;
     const isLookingDownCandidate = !this.isTakingNotes && hasFace && (
-      pitchBelowBaseline >= PITCH_DOWN_THRESHOLD_DEG ||
-      (gazeDownDelta >= GAZE_DOWN_DELTA_THRESHOLD && pitchBelowBaseline >= PITCH_SLIGHT_DOWN_DEG)
+      this.currentDownness > DOWN_THRESHOLD_NORMALIZED || isGazeLookingDown
     );
 
-    // Rule 3: Phone Visible with head down (>5°)
-    const isPhoneCandidate = hasFace && this.isPhoneDetected && pitchBelowBaseline >= PITCH_SLIGHT_DOWN_DEG;
+    // Rule 3: Phone Visible with head slightly down (downness > 0.3)
+    const isHeadSlightlyDown = this.currentDownness > 0.3;
+    const isPhoneCandidate = hasFace && this.isPhoneDetected && isHeadSlightlyDown;
 
     this.evaluateAttentionTriggers({
       now: Date.now(),
@@ -812,10 +942,20 @@ const FocusTubeCamera = {
   },
 
   /**
-   * Pauses playback, pauses timer, logs distraction with exact type, and shows Focus Lost overlay
+   * Pauses playback, pauses timer, logs distraction with exact type, and shows Focus Lost overlay.
+   * Gated: detection must only log distractions while a session is running.
    */
   triggerDistraction(type) {
-    console.warn(`[Camera] Attention lost (${type}). Triggering distraction handling.`);
+    const isSessionRunning = typeof window !== 'undefined' && window.FocusTubeFocus && typeof window.FocusTubeFocus.isSessionActive === 'function'
+      ? window.FocusTubeFocus.isSessionActive()
+      : false;
+
+    if (!isSessionRunning) {
+      console.log(`[Camera] Attention diverted (${type}), but session is not running. Distraction not logged.`);
+      return;
+    }
+
+    console.warn(`[Camera] Attention lost (${type}) during active session. Triggering distraction.`);
     if (typeof window !== 'undefined' && window.FocusTubeFocus) {
       window.FocusTubeFocus.handleFocusLoss(type);
     }
@@ -847,7 +987,7 @@ const FocusTubeCamera = {
   },
 
   /**
-   * Updates camera preview HUD overlay
+   * Updates camera preview HUD overlay live at all times
    */
   updateHUD(hasFace, isPhone, isLookingDown, isFaceAway) {
     if (!this.elements.hudStatusPill) return;
@@ -855,6 +995,9 @@ const FocusTubeCamera = {
     if (this.isCalibrating) {
       this.elements.hudStatusPill.className = 'camera-status-pill calibrating';
       this.elements.hudStatusPill.textContent = 'CALIBRATING...';
+    } else if (!this.isCalibrated) {
+      this.elements.hudStatusPill.className = 'camera-status-pill away';
+      this.elements.hudStatusPill.textContent = 'CALIBRATE FIRST';
     } else if (!hasFace) {
       this.elements.hudStatusPill.className = 'camera-status-pill noface';
       this.elements.hudStatusPill.textContent = 'NO FACE';
@@ -881,7 +1024,8 @@ const FocusTubeCamera = {
   },
 
   /**
-   * Ensures the ?debug=1 overlay exists and updates live telemetry metrics
+   * Ensures the ?debug=1 overlay exists and updates live telemetry metrics:
+   * yaw, pitch, downness, gazeDown, and phone yes/no live.
    */
   ensureDebugOverlay() {
     if (!this.isDebugMode || typeof document === 'undefined') return;
@@ -899,18 +1043,17 @@ const FocusTubeCamera = {
   updateDebugOverlay() {
     if (!this.isDebugMode || !this.elements.debugOverlay) return;
 
-    const pitchBelow = (this.baseline.pitch - this.currentPitch).toFixed(1);
-    const gazeDelta = (this.currentGazeDown - this.baseline.gazeDown).toFixed(2);
-    const phoneText = this.isPhoneDetected ? `YES (${(this.phoneScore * 100).toFixed(0)}%)` : 'NO';
-    const notesText = this.isTakingNotes ? 'ON' : 'OFF';
+    const downnessFormatted = typeof this.currentDownness === 'number' ? this.currentDownness.toFixed(2) : '0.00';
+    const phoneText = this.isPhoneDetected ? 'YES' : 'NO';
 
     this.elements.debugOverlay.innerHTML = `
-      <div style="font-weight: 700; color: #c0c1ff; margin-bottom: 2px;">CAMERA TELEMETRY</div>
-      <div>Yaw: ${this.currentYaw}° (base: ${this.baseline.yaw}°)</div>
-      <div>Pitch: ${this.currentPitch}° (diff: ${pitchBelow}°)</div>
-      <div>GazeDown: ${this.currentGazeDown} (diff: ${gazeDelta})</div>
+      <div style="font-weight: 700; color: #c0c1ff; margin-bottom: 2px;">CAMERA TELEMETRY (?debug=1)</div>
+      <div>Yaw: ${this.currentYaw}°</div>
+      <div>Pitch: ${this.currentPitch}°</div>
+      <div>Downness: ${downnessFormatted}</div>
+      <div>GazeDown: ${this.currentGazeDown}</div>
       <div>Phone: <span style="color: ${this.isPhoneDetected ? 'var(--color-tertiary)' : 'var(--color-secondary)'}">${phoneText}</span></div>
-      <div>Notes: <span style="color: ${this.isTakingNotes ? 'var(--color-tertiary)' : 'var(--color-outline)'}">${notesText}</span></div>
+      <div style="font-size: 10px; color: var(--color-outline); margin-top: 2px;">dir: ${this.dir >= 0 ? '+' : '-'}${Math.abs(this.dir)}, range: ${this.range}°, notes: ${this.isTakingNotes ? 'ON' : 'OFF'}</div>
     `;
     this.elements.debugOverlay.style.display = 'block';
   },

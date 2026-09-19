@@ -201,6 +201,32 @@ mouseoutHandlers.forEach(h => h({ relatedTarget: null, clientY: -1 }));
 assert.strictEqual(banner.classList.contains('visible'), false, '10-second cooldown must prevent re-triggering banner');
 console.log('✓ 10-second cooldown properly enforced');
 
+// Test 2e: Mousemove upward into top 30px (after cooldown reset)
+FocusTubeFocus.lastExitIntentTime = 0;
+const mousemoveHandlers = documentListeners['mousemove'] || [];
+assert(mousemoveHandlers.length > 0, 'mousemove listener should be registered');
+
+// Downward movement or > 30px: should NOT trigger
+mousemoveHandlers.forEach(h => h({ clientY: 80 }));
+mousemoveHandlers.forEach(h => h({ clientY: 100 })); // moving down
+assert.strictEqual(banner.classList.contains('visible'), false, 'Downward mouse movement should not trigger banner');
+
+// Upward movement into top 30px: 40 -> 25 (moving upward into top 30px)
+mousemoveHandlers.forEach(h => h({ clientY: 40 }));
+mousemoveHandlers.forEach(h => h({ clientY: 25 }));
+assert.strictEqual(banner.classList.contains('visible'), true, 'Upward mouse movement entering top 30px should trigger banner');
+console.log('✓ Mousemove entering top 30px while moving upward triggers departure banner');
+
+// Test 2f: Document mouseleave with clientY <= 0 (after cooldown reset)
+FocusTubeFocus.lastExitIntentTime = 0;
+banner.classList.remove('visible');
+const mouseleaveHandlers = documentListeners['mouseleave'] || [];
+assert(mouseleaveHandlers.length > 0, 'mouseleave listener should be registered');
+
+mouseleaveHandlers.forEach(h => h({ clientY: -5 }));
+assert.strictEqual(banner.classList.contains('visible'), true, 'Document mouseleave through top (clientY <= 0) should trigger banner');
+console.log('✓ Document mouseleave through top edge (clientY <= 0) triggers departure banner');
+
 // -------------------------------------------------------------
 // Test 3: beforeunload Handler & In-App Navigation sessionActive = false
 // -------------------------------------------------------------

@@ -112,47 +112,101 @@ if (Math.abs(gazeDown - 0.50) > 0.01) {
 }
 console.log('✓ Blendshape gaze-down extraction verified');
 
-// 5. Test Calibration Step & Baseline Calculation
-console.log('\n--- Testing calibration step & baseline computation ---');
+// 5. Test Two-Pose Calibration Step & Direction Learning
+console.log('\n--- Testing two-pose calibration & direction learning ---');
 FocusTubeCamera.startCalibration();
 if (!FocusTubeCamera.isCalibrating) throw new Error('isCalibrating should be true');
+if (FocusTubeCamera.calibrationStep !== 1) throw new Error('Initial calibrationStep should be 1');
 
-// Feed sample frames over 3 seconds
+// Feed step 1 (screen pose) samples
 FocusTubeCamera.recordCalibrationSample({ yaw: 2, pitch: 5, gazeDown: 0.1 });
 FocusTubeCamera.recordCalibrationSample({ yaw: 4, pitch: 7, gazeDown: 0.14 });
+
+// Force transition to Step 2 (phone pose)
+FocusTubeCamera.calibrationStep = 2;
+FocusTubeCamera.calibrationStartTime = Date.now();
+FocusTubeCamera.recordCalibrationSample({ yaw: 3, pitch: -14, gazeDown: 0.6 });
+FocusTubeCamera.recordCalibrationSample({ yaw: 5, pitch: -16, gazeDown: 0.64 });
+
 FocusTubeCamera.finishCalibration();
 
-console.log('  Computed Baseline:', FocusTubeCamera.baseline);
+console.log('  Computed Baseline (Screen):', FocusTubeCamera.baseline);
+console.log('  Computed PhonePose:', FocusTubeCamera.phonePose);
+console.log(`  Learned dir: ${FocusTubeCamera.dir}, range: ${FocusTubeCamera.range}°`);
+
 if (Math.abs(FocusTubeCamera.baseline.pitch - 6.0) > 0.1) {
   throw new Error(`Expected baseline pitch 6.0, got ${FocusTubeCamera.baseline.pitch}`);
 }
-if (Math.abs(FocusTubeCamera.baseline.yaw - 3.0) > 0.1) {
-  throw new Error(`Expected baseline yaw 3.0, got ${FocusTubeCamera.baseline.yaw}`);
+if (Math.abs(FocusTubeCamera.phonePose.pitch - (-15.0)) > 0.1) {
+  throw new Error(`Expected phonePose pitch -15.0, got ${FocusTubeCamera.phonePose.pitch}`);
 }
-if (Math.abs(FocusTubeCamera.baseline.gazeDown - 0.12) > 0.01) {
-  throw new Error(`Expected baseline gazeDown 0.12, got ${FocusTubeCamera.baseline.gazeDown}`);
+// Pitch decreased (-15 < 6), so dir should be -1
+if (FocusTubeCamera.dir !== -1) {
+  throw new Error(`Expected dir -1 for downward pitch drop, got ${FocusTubeCamera.dir}`);
 }
-console.log('✓ Calibration baseline correctly computes sample averages');
+// Range = max(|-15 - 6|, 8) = 21
+if (Math.abs(FocusTubeCamera.range - 21) > 0.1) {
+  throw new Error(`Expected range 21, got ${FocusTubeCamera.range}`);
+}
+if (!FocusTubeCamera.isCalibrated) {
+  throw new Error('isCalibrated should be true after successful two-pose calibration');
+}
+console.log('✓ Two-pose calibration automatically learned direction (-1) and range (21°)');
 
-// 6. Test Multi-Condition Distraction Classification
-console.log('\n--- Testing distraction rules & timers ---');
-let lastTriggeredType = null;
-FocusTubeCamera.triggerDistraction = (type) => {
-  lastTriggeredType = type;
+// 5B. Test Calibration Failure when range < 3°
+console.log('\n--- Testing calibration failure (range < 3°) ---');
+FocusTubeCamera.startCalibration();
+FocusTubeCamera.recordCalibrationSample({ yaw: 0, pitch: 10, gazeDown: 0.1 });
+FocusTubeCamera.calibrationStep = 2;
+FocusTubeCamera.calibrationStartTime = Date.now();
+FocusTubeCamera.recordCalibrationSample({ yaw: 0, pitch: 11, gazeDown: 0.1 }); // Only 1° difference!
+FocusTubeCamera.finishCalibration();
+
+if (FocusTubeCamera.isCalibrated) {
+  throw new Error('Calibration should fail when poses have < 3° difference');
+}
+if (FocusTubeCamera.calibrationError !== "Calibration didn't detect a difference, try again") {
+  throw new Error(`Expected error message "Calibration didn't detect a difference, try again", got "${FocusTubeCamera.calibrationError}"`);
+}
+console.log('✓ Calibration failure correctly caught and disables tracking when range < 3°');
+
+// Restore valid calibration for subsequent tests
+FocusTubeCamera.baseline = { yaw: 0, pitch: 0, gazeDown: 0.1 };
+FocusTubeCamera.phonePose = { yaw: 0, pitch: -20, gazeDown: 0.6 };
+FocusTubeCamera.dir = -1;
+FocusTubeCamera.range = 20;
+FocusTubeCamera.isCalibrated = true;
+
+// 6. Test Multi-Condition Distraction Classification & Session Gating
+console.log('\n--- Testing downness calculation & distraction classification ---');
+
+// Mock FocusTubeFocus to control session active status
+global.window = global.window || {};
+let mockSessionActive = true;
+global.window.FocusTubeFocus = {
+  isSessionActive: () => mockSessionActive,
+  handleFocusLoss: (type) => { lastTriggeredType = type; },
+  handleFocusReturn: () => {}
 };
 
-// Reset state
-FocusTubeCamera.baseline = { yaw: 0, pitch: 0, gazeDown: 0.1 };
+let lastTriggeredType = null;
+
+// Case 6A: Downness > 0.6 persists for 3s during session -> looking_down
+console.log('  Testing Case 6A: Downness > 0.6 persists for 3s during active session');
+mockSessionActive = true;
 FocusTubeCamera.isTakingNotes = false;
 FocusTubeCamera.isCurrentlyLookingAway = false;
-FocusTubeCamera.phoneStartTime = null;
-FocusTubeCamera.lookingDownStartTime = null;
-FocusTubeCamera.faceAwayStartTime = null;
+FocusTubeCamera.currentPitch = -16; // baseline is 0, dir is -1, range is 20
+const pitchDelta = FocusTubeCamera.currentPitch - FocusTubeCamera.baseline.pitch;
+FocusTubeCamera.currentDownness = Math.round(((pitchDelta * FocusTubeCamera.dir) / FocusTubeCamera.range) * 100) / 100;
+console.log('  Calculated downness for pitch -16°:', FocusTubeCamera.currentDownness);
+if (FocusTubeCamera.currentDownness <= 0.6) {
+  throw new Error(`Expected downness > 0.6, got ${FocusTubeCamera.currentDownness}`);
+}
 
-// Case 6A: Pitch > 15° below baseline for 3s -> looking_down
-console.log('  Testing Case 6A: Pitch > 15° below baseline for 3s');
 const now = Date.now();
 FocusTubeCamera.lookingDownStartTime = now - 3100;
+
 FocusTubeCamera.evaluateAttentionTriggers({
   now,
   hasFace: true,
@@ -163,22 +217,34 @@ FocusTubeCamera.evaluateAttentionTriggers({
 if (lastTriggeredType !== 'looking_down') {
   throw new Error(`Expected 'looking_down' distraction, got ${lastTriggeredType}`);
 }
-console.log('  ✓ looking_down triggered after 3s of head pitch drop');
+console.log('  ✓ looking_down triggered after 3s of high downness (> 0.6)');
 
-// Case 6B: Taking notes disables looking_down rule
-console.log('  Testing Case 6B: "Taking notes" toggle disables looking_down');
+// Case 6B: Looking down does NOT log distraction if session is NOT running
+console.log('  Testing Case 6B: Distraction NOT logged when session is not running');
+mockSessionActive = false;
+lastTriggeredType = null;
+FocusTubeCamera.isCurrentlyLookingAway = false;
+FocusTubeCamera.lookingDownStartTime = now - 3100;
+FocusTubeCamera.triggerDistraction('looking_down');
+if (lastTriggeredType !== null) {
+  throw new Error('Distraction MUST NOT be logged when session is not running');
+}
+console.log('  ✓ Distraction suppressed while session is not running (live HUD remains active)');
+
+// Case 6C: Taking notes disables looking_down rule
+console.log('  Testing Case 6C: "Taking notes" toggle disables looking_down candidate');
+mockSessionActive = true;
 FocusTubeCamera.isTakingNotes = true;
 lastTriggeredType = null;
 FocusTubeCamera.isCurrentlyLookingAway = false;
-// Pitch below baseline = 18 degrees, but taking notes is ON
-const isLookingDownWhenTakingNotes = !FocusTubeCamera.isTakingNotes && (18 >= FocusTubeCamera.PITCH_DOWN_THRESHOLD_DEG);
+const isLookingDownWhenTakingNotes = !FocusTubeCamera.isTakingNotes && (0.85 > FocusTubeCamera.DOWN_THRESHOLD_NORMALIZED);
 if (isLookingDownWhenTakingNotes !== false) {
   throw new Error('Taking notes toggle should disable looking down candidate');
 }
 console.log('  ✓ Taking notes toggle successfully disables looking down candidate');
 
-// Case 6C: Phone visible with head down for 1.5s -> phone_visible
-console.log('  Testing Case 6C: Phone visible with head down for 1.5s');
+// Case 6D: Phone visible with head down for 1.5s -> phone_visible
+console.log('  Testing Case 6D: Phone visible with head down for 1.5s');
 FocusTubeCamera.isTakingNotes = false;
 FocusTubeCamera.isCurrentlyLookingAway = false;
 lastTriggeredType = null;
@@ -195,8 +261,8 @@ if (lastTriggeredType !== 'phone_visible') {
 }
 console.log('  ✓ phone_visible triggered after 1.5s with head down');
 
-// Case 6D: Face away for 1.5s -> face_away
-console.log('  Testing Case 6D: Face away / yaw for 1.5s');
+// Case 6E: Face away for 1.5s -> face_away
+console.log('  Testing Case 6E: Face away / yaw for 1.5s');
 FocusTubeCamera.isCurrentlyLookingAway = false;
 lastTriggeredType = null;
 FocusTubeCamera.faceAwayStartTime = now - 1600;
@@ -212,8 +278,8 @@ if (lastTriggeredType !== 'face_away') {
 }
 console.log('  ✓ face_away triggered after 1.5s away');
 
-// 7. Verify study.html elements
-console.log('\n--- Checking study.html DOM elements ---');
+// 7. Verify study.html elements & hints
+console.log('\n--- Checking study.html DOM elements & hint ---');
 const studyHtml = fs.readFileSync(studyHtmlPath, 'utf8');
 
 const requiredIds = [
@@ -235,7 +301,8 @@ const requiredIds = [
   'camera-calibration-text',
   'camera-calibration-progress',
   'taking-notes-toggle',
-  'camera-recalibrate-btn'
+  'camera-recalibrate-btn',
+  'session-start-hint'
 ];
 
 requiredIds.forEach(id => {
@@ -243,10 +310,13 @@ requiredIds.forEach(id => {
     throw new Error(`Missing ID in study.html: ${id}`);
   }
 });
-console.log(`✓ All ${requiredIds.length} required camera DOM elements present in study.html`);
+if (!studyHtml.includes('Start the session to turn on distraction tracking and departure alerts.')) {
+  throw new Error('Missing Start button hint in study.html');
+}
+console.log(`✓ All ${requiredIds.length} required camera DOM elements and Start button hint present in study.html`);
 
-// 8. Verify css/styles.css classes
-console.log('\n--- Checking css/styles.css camera classes ---');
+// 8. Verify css/styles.css classes & fixed banner positioning
+console.log('\n--- Checking css/styles.css camera and exit banner classes ---');
 const stylesCss = fs.readFileSync(stylesCssPath, 'utf8');
 const requiredClasses = [
   '.camera-preview-container',
@@ -259,7 +329,8 @@ const requiredClasses = [
   '.camera-calibration-overlay',
   '.calibration-progress-bar',
   '.calibration-progress-fill',
-  '.camera-debug-overlay'
+  '.camera-debug-overlay',
+  '.exit-intent-banner'
 ];
 
 requiredClasses.forEach(cls => {
@@ -267,7 +338,12 @@ requiredClasses.forEach(cls => {
     throw new Error(`Missing class in css/styles.css: ${cls}`);
   }
 });
-console.log(`✓ All ${requiredClasses.length} required CSS styles validated in css/styles.css`);
+
+// Check that .exit-intent-banner has position: fixed, top: 0, z-index: 999999
+if (!stylesCss.includes('position: fixed;') || !stylesCss.includes('top: 0;') || !stylesCss.includes('z-index: 999999;')) {
+  throw new Error('.exit-intent-banner must have position: fixed, top: 0, and z-index: 999999');
+}
+console.log(`✓ All ${requiredClasses.length} required CSS styles and fixed banner properties validated`);
 
 console.log('\n========================================================');
 console.log('All Camera Attention Detection tests passed successfully! 🎉');

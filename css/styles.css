@@ -2030,35 +2030,38 @@ ul, ol {
 
 .exit-intent-banner {
   position: fixed;
-  top: 18px;
-  left: 50%;
-  transform: translateX(-50%) translateY(-24px);
+  top: 0;
+  left: 0;
+  right: 0;
+  transform: translateY(-100%);
   opacity: 0;
   pointer-events: none;
-  z-index: 1000;
+  z-index: 999999;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: var(--space-sm);
-  background: rgba(28, 31, 45, 0.96);
-  border: 1px solid rgba(255, 185, 95, 0.45);
-  box-shadow: 0 0 24px rgba(245, 158, 11, 0.2), 0 12px 36px rgba(0, 0, 0, 0.65);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border-radius: var(--radius-xl);
-  padding: 10px 20px;
+  background: rgba(28, 31, 45, 0.98);
+  border-bottom: 1px solid rgba(255, 185, 95, 0.5);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.7), 0 0 16px rgba(245, 158, 11, 0.25);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+  padding: 12px 24px;
   color: var(--color-on-surface);
   font-family: var(--font-family-sans);
   font-size: var(--text-label-md);
   font-weight: 500;
   line-height: 1.4;
-  max-width: min(600px, 92vw);
+  margin: 0 auto;
+  width: 100%;
   transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
   user-select: none;
 }
 
 .exit-intent-banner.visible {
   opacity: 1;
-  transform: translateX(-50%) translateY(0);
+  transform: translateY(0);
   pointer-events: auto;
 }
 

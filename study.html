@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Study Room — FocusTube</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <style>
+    /* Study Room Sub-Header Strip */
+    .session-strip {
+      width: 100%;
+      background-color: var(--color-surface-container-low);
+      border-bottom: 1px solid rgba(70, 69, 84, 0.3);
+      padding: 12px var(--margin);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-md);
+    }
+
+    .session-title-group {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+    }
+
+    .session-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 12px;
+      border-radius: var(--radius-full);
+      background-color: rgba(38, 41, 56, 0.8);
+      font-size: var(--text-label-sm);
+    }
+
+    /* Workspace 12-Col Grid */
+    .study-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: var(--gutter);
+      align-items: start;
+    }
+
+    @media (min-width: 1024px) {
+      .study-grid {
+        grid-template-columns: 8fr 4fr;
+      }
+    }
+
+    /* Video Player Frame */
+    .player-frame {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      background-color: var(--color-surface-container-lowest);
+      border-radius: var(--radius-2xl);
+      overflow: hidden;
+      box-shadow: var(--shadow-2xl);
+      border: 1px solid rgba(70, 69, 84, 0.4);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .player-overlay-hud {
+      padding: var(--space-md);
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      z-index: 10;
+      background: linear-gradient(180deg, rgba(10, 13, 27, 0.8) 0%, transparent 100%);
+    }
+
+    .lecture-meta-pill {
+      background: rgba(10, 13, 27, 0.7);
+      backdrop-filter: blur(8px);
+      padding: 8px 14px;
+      border-radius: var(--radius-xl);
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .player-controls-dock {
+      padding: var(--space-md);
+      background: linear-gradient(0deg, rgba(10, 13, 27, 0.9) 0%, transparent 100%);
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-sm);
+    }
+
+    /* Timeline Scrubber */
+    .timeline-bar {
+      position: relative;
+      width: 100%;
+      height: 16px;
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      user-select: none;
+      touch-action: none;
+    }
+
+    .timeline-track {
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 6px;
+      background-color: var(--color-surface-container-highest);
+      border-radius: var(--radius-full);
+      overflow: visible;
+    }
+
+    .timeline-progress {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--color-primary), var(--color-primary-container));
+      border-radius: var(--radius-full);
+      position: relative;
+      pointer-events: none;
+    }
+
+    .timeline-thumb {
+      position: absolute;
+      right: -7px;
+      top: -4px;
+      width: 14px;
+      height: 14px;
+      background-color: var(--color-primary);
+      border-radius: 50%;
+      box-shadow: 0 0 10px rgba(192, 193, 255, 0.9);
+      transform: scale(0.85);
+      transition: transform 0.15s ease;
+    }
+
+    .timeline-bar:hover .timeline-thumb {
+      transform: scale(1.2);
+    }
+
+    .control-tray {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background-color: rgba(10, 13, 27, 0.85);
+      backdrop-filter: blur(12px);
+      padding: 8px 16px;
+      border-radius: var(--radius-xl);
+      border: 1px solid rgba(70, 69, 84, 0.3);
+    }
+
+    /* Pomodoro Dial Card */
+    .timer-ring-container {
+      position: relative;
+      width: 180px;
+      height: 180px;
+      margin: var(--space-sm) auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .timer-ring-svg {
+      transform: rotate(-90deg);
+      width: 100%;
+      height: 100%;
+    }
+
+    .timer-digits-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+
+    .timer-number {
+      font-size: var(--text-display-lg);
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    /* Telemetry Grid */
+    .metric-two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-sm);
+    }
+
+    .sub-metric-box {
+      background-color: var(--color-surface-container-low);
+      padding: 12px;
+      border-radius: var(--radius-xl);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Exit-Intent Pre-Departure Warning Banner -->
+  <div id="exit-intent-banner" class="exit-intent-banner" role="alert" style="display: none;">
+    <div class="exit-intent-content">
+      <span class="material-symbols-outlined exit-intent-icon">warning</span>
+      <span class="exit-intent-text">Leaving? Your video and timer will pause, and this counts as a distraction.</span>
+    </div>
+  </div>
+
+  <!-- Global Header -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand-group">
+        <a href="index.html" class="brand-logo">
+          <span class="logo-icon">🎯</span>
+          <span>FocusTube</span>
+        </a>
+        <div class="engine-tag">
+          <span class="status-dot active"></span>
+          <span>Focus Engine</span>
+        </div>
+      </div>
+
+      <nav class="nav-links">
+        <a href="index.html" class="nav-link">Home</a>
+        <a href="study.html" class="nav-link active">Study Room</a>
+        <a href="summary.html" class="nav-link">Session Summary</a>
+      </nav>
+
+      <div class="header-actions">
+        <a href="summary.html" class="btn btn-danger btn-sm">End Session</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <!-- Sub-Header Status Strip -->
+    <div class="session-strip">
+      <div class="session-title-group">
+        <span style="font-size: 20px;">📚</span>
+        <span style="font-size: var(--text-label-md); color: var(--color-outline); text-transform: uppercase;">Session:</span>
+        <h1 id="study-session-heading" style="font-size: var(--text-headline-sm); font-weight: 600;">Study Session</h1>
+      </div>
+
+      <div class="session-indicator">
+        <span class="status-dot active"></span>
+        <span style="color: var(--color-secondary); font-weight: 600; text-transform: uppercase;">🔒 Focus Mode Active</span>
+        <span style="color: var(--color-outline-variant);">•</span>
+        <span style="color: var(--color-on-surface-variant); font-size: var(--text-body-sm);">Recommendations Silenced</span>
+      </div>
+
+      <div id="demo-mode-indicator-pill" class="engine-tag font-mono" style="display: none; background: rgba(255, 185, 95, 0.15); color: var(--color-tertiary); border: 1px solid rgba(255, 185, 95, 0.4);">
+        ⚡ DEMO MODE (1-MIN BLOCKS • SHIFT+D FOR DISTRACTION)
+      </div>
+
+      <div id="quiz-status-indicator" class="engine-tag font-mono" style="display: none; background: rgba(99, 102, 241, 0.12); color: var(--color-primary); border: 1px solid rgba(99, 102, 241, 0.3);">
+        <span class="material-symbols-outlined" id="quiz-status-icon" style="font-size: 14px;">sync</span>
+        <span id="quiz-status-text">Quiz preparing…</span>
+      </div>
+
+      <div>
+        <a href="summary.html" class="btn btn-danger btn-sm">
+          <span class="material-symbols-outlined" style="font-size: 16px;">stop_circle</span>
+          <span>End Session</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- Workspace Container -->
+    <div class="container">
+      <!-- Empty State (When no video is selected) -->
+      <div id="study-empty-state" class="card" style="display: none; padding: var(--space-2xl); text-align: center; max-width: 600px; margin: var(--space-2xl) auto;">
+        <div style="width: 64px; height: 64px; border-radius: 50%; background: rgba(99, 102, 241, 0.15); color: var(--color-primary); display: flex; align-items: center; justify-content: center; margin: 0 auto var(--space-md);">
+          <span class="material-symbols-outlined" style="font-size: 36px;">video_library</span>
+        </div>
+        <h2 style="font-size: var(--text-headline-md); font-weight: 600;">No Video Selected</h2>
+        <p style="color: var(--color-on-surface-variant); font-size: var(--text-body-md); margin: var(--space-xs) 0 var(--space-lg); line-height: 1.5;">
+          You haven't selected a lecture for this study session. Choose a lecture from the library or paste a YouTube URL to get started.
+        </p>
+        <a href="index.html#video-picker" class="btn btn-primary" style="display: inline-flex;">
+          <span class="material-symbols-outlined">play_arrow</span>
+          <span>Choose a Lecture</span>
+        </a>
+      </div>
+
+      <div class="study-grid" id="study-main-workspace">
+        <!-- LEFT COLUMN: Focus Player Workspace -->
+        <section style="display: flex; flex-direction: column; gap: var(--space-md);">
+          <!-- Video Viewport Frame -->
+          <div class="player-frame">
+            <!-- Top HUD -->
+            <div class="player-overlay-hud">
+              <div class="lecture-meta-pill">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span id="lecture-meta-channel" style="background: rgba(99, 102, 241, 0.2); color: var(--color-primary); font-size: var(--text-label-sm); font-weight: 700; padding: 2px 6px; border-radius: 4px;">MIT OpenCourseWare</span>
+                  <span style="font-size: var(--text-body-sm); color: var(--color-on-surface-variant);" class="font-mono">1080p60 • Crisp</span>
+                </div>
+                <span id="lecture-meta-title" style="font-size: var(--text-headline-sm); font-weight: 600;">Lecture 1: The Geometry of Linear Equations &amp; Row Picture</span>
+              </div>
+
+              <div class="engine-tag" style="background: rgba(10, 13, 27, 0.8); color: var(--color-secondary);">
+                <span class="material-symbols-outlined" style="font-size: 14px;">shield</span>
+                <span>Clean Stream</span>
+              </div>
+            </div>
+
+            <!-- Embedded YouTube Player Target Container -->
+            <div id="youtube-player-iframe" style="position: absolute; inset: 0; width: 100%; height: 100%;"></div>
+
+            <!-- Video Playback Error Overlay (Handled by js/player.js onError) -->
+            <div id="player-error-overlay" class="player-error-overlay" style="display: none;">
+              <div class="player-error-card">
+                <div class="error-icon-circle">
+                  <span class="material-symbols-outlined" style="font-size: 36px; color: var(--color-error);">error_outline</span>
+                </div>
+                <h3 style="font-size: var(--text-headline-sm); font-weight: 600; color: var(--color-on-surface);">Video Playback Restricted</h3>
+                <p id="player-error-message" style="font-size: var(--text-body-md); color: var(--color-on-surface-variant); max-width: 380px; margin: 0 auto; line-height: 1.5;">
+                  This video can't be played in FocusTube. The owner has disabled embedding or the video is unavailable.
+                </p>
+                <div style="margin-top: var(--space-xs);">
+                  <a href="index.html#video-picker" class="btn btn-primary" id="choose-another-video-btn">
+                    <span class="material-symbols-outlined">arrow_back</span>
+                    <span>Choose another video</span>
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            <!-- Focus Lost Paused State Overlay (Stitch Screen 2 Alternate State) -->
+            <div id="focus-lost-overlay" class="focus-lost-overlay" style="display: none;">
+              <div class="focus-lost-card">
+                <div class="focus-lost-icon-wrapper">
+                  <div class="focus-lost-icon-halo"></div>
+                  <span class="material-symbols-outlined focus-lost-icon">visibility_off</span>
+                </div>
+                <h3 class="focus-lost-title">You left the study session</h3>
+                <div class="focus-lost-subtitle font-mono" id="focus-lost-subtitle">
+                  Distraction #1 registered at 00:00
+                </div>
+                <p class="focus-lost-desc" id="focus-lost-desc">
+                  Playback and timer paused automatically to prevent knowledge gaps.
+                </p>
+                <div class="focus-lost-action" id="focus-lost-action-box">
+                  <button class="btn btn-primary" id="return-to-continue-btn" type="button">
+                    <span class="material-symbols-outlined">play_arrow</span>
+                    <span>Return to continue</span>
+                    <span class="key-hint font-mono">[Space]</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Next Lecture in Queue Overlay (Non-Autoplay Completion State) -->
+            <div id="next-queue-overlay" class="next-queue-overlay" style="display: none;">
+              <div class="next-queue-card">
+                <div class="next-queue-badge">
+                  <span class="material-symbols-outlined" style="font-size: 16px;">playlist_play</span>
+                  <span>Next in Queue</span>
+                </div>
+                <div class="next-queue-heading">Lecture Completed</div>
+                <div class="next-queue-preview-box">
+                  <img id="next-queue-thumb" src="" alt="Next Lecture Thumbnail" />
+                  <div class="next-queue-details">
+                    <span id="next-queue-title" class="next-queue-title">Lecture Title</span>
+                    <span id="next-queue-channel" style="font-size: var(--text-label-sm); color: var(--color-outline);">Channel</span>
+                  </div>
+                </div>
+                <div class="next-queue-actions">
+                  <button class="btn btn-primary" id="next-queue-play-btn" type="button">
+                    <span class="material-symbols-outlined">play_arrow</span>
+                    <span>Play next lecture</span>
+                  </button>
+                  <button class="btn btn-secondary btn-sm" id="next-queue-replay-btn" type="button">
+                    <span class="material-symbols-outlined" style="font-size: 16px;">replay</span>
+                    <span>Rewatch</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Bottom Custom Control Dock -->
+            <div class="player-controls-dock" id="player-controls-dock">
+              <div class="timeline-bar" id="player-timeline-bar" role="slider" aria-label="Video scrubber" tabindex="0">
+                <div class="timeline-track">
+                  <div class="timeline-progress" id="player-timeline-progress" style="width: 0%;">
+                    <div class="timeline-thumb" id="player-timeline-thumb"></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="control-tray">
+                <div style="display: flex; align-items: center; gap: var(--space-sm);">
+                  <button class="btn-ghost" id="player-play-pause-btn" style="padding: 4px;" title="Play / Pause (Space)" type="button">
+                    <span class="material-symbols-outlined" id="player-play-pause-icon">play_arrow</span>
+                  </button>
+                  <button class="btn-ghost" id="player-rewind-btn" style="padding: 4px;" title="Rewind 10s (Left Arrow)" type="button">
+                    <span class="material-symbols-outlined">replay_10</span>
+                  </button>
+                  <button class="btn-ghost" id="player-forward-btn" style="padding: 4px;" title="Forward 10s (Right Arrow)" type="button">
+                    <span class="material-symbols-outlined">forward_10</span>
+                  </button>
+                  <div class="font-mono" style="font-size: var(--text-body-sm); margin-left: 8px;">
+                    <span id="player-current-time-display">00:00</span> <span id="player-duration-display" style="color: var(--color-outline);">/ --:--</span>
+                  </div>
+                </div>
+
+                <div style="display: flex; align-items: center; gap: var(--space-sm);">
+                  <button class="engine-tag font-mono" id="player-speed-btn" style="cursor: pointer; background: rgba(70, 69, 84, 0.3); border: 1px solid rgba(70, 69, 84, 0.5); padding: 2px 8px; border-radius: 4px;" title="Playback Speed" type="button">1.0x</button>
+                  <button class="btn-ghost" id="player-fullscreen-btn" style="padding: 4px;" title="Fullscreen (F)" type="button">
+                    <span class="material-symbols-outlined">fullscreen</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Curriculum Guide & Chapters Rail (Dynamic or hidden for custom videos) -->
+          <div class="card" id="curriculum-chapters-card" style="display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-md);">
+              <div style="display: flex; align-items: center; gap: var(--space-xs);">
+                <span class="material-symbols-outlined" style="color: var(--color-primary);">menu_book</span>
+                <h2 style="font-size: var(--text-headline-sm); font-weight: 600;">Curriculum Guide &amp; Chapters</h2>
+              </div>
+              <span style="font-size: var(--text-label-sm); color: var(--color-outline);">Lesson Outline</span>
+            </div>
+
+            <div id="curriculum-chapters-list" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-md);">
+              <!-- Dynamically populated or hidden by js/player.js -->
+            </div>
+          </div>
+
+          <!-- Study Queue Panel (Active Playlist / Multi-video Queue) -->
+          <div class="card" id="study-queue-panel" style="display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-md);">
+              <div style="display: flex; align-items: center; gap: var(--space-xs);">
+                <span class="material-symbols-outlined" style="color: var(--color-primary);">queue_music</span>
+                <h2 style="font-size: var(--text-headline-sm); font-weight: 600;">Study Queue</h2>
+              </div>
+              <span id="queue-progress-badge" class="engine-tag font-mono" style="color: var(--color-primary); background: rgba(99, 102, 241, 0.12);">1 / 1</span>
+            </div>
+
+            <div class="study-queue-list" id="study-queue-list">
+              <!-- Dynamically populated queue items -->
+            </div>
+          </div>
+        </section>
+
+        <!-- RIGHT COLUMN: Telemetry & Controls Rail -->
+        <aside style="display: flex; flex-direction: column; gap: var(--space-md);">
+          <!-- CARD 1: Pomodoro Study Cycle -->
+          <div class="card" id="pomodoro-timer-card" style="text-align: center;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span id="timer-block-label" style="font-size: var(--text-label-md); font-weight: 600;">Focus block 1 of 4</span>
+              <span id="timer-mode-tag" class="engine-tag font-mono" style="color: var(--color-tertiary);">Deep Work</span>
+            </div>
+
+            <div class="timer-ring-container">
+              <svg class="timer-ring-svg" viewBox="0 0 160 160">
+                <circle cx="80" cy="80" r="68" fill="transparent" stroke="var(--color-surface-container-highest)" stroke-width="10" />
+                <circle id="timer-progress-circle" cx="80" cy="80" r="68" fill="transparent" stroke="var(--color-primary)" stroke-width="10" stroke-dasharray="427" stroke-dashoffset="0" stroke-linecap="round" style="transition: stroke-dashoffset 0.3s ease, stroke 0.3s ease;" />
+              </svg>
+              <div class="timer-digits-overlay font-mono">
+                <span class="timer-number" id="timer-display">25:00</span>
+                <span id="timer-sublabel" style="font-size: var(--text-label-sm); color: var(--color-outline); text-transform: uppercase;">Remaining</span>
+              </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-sm); margin-top: var(--space-sm);">
+              <button class="btn btn-primary btn-sm" id="timer-toggle-btn" type="button">
+                <span class="material-symbols-outlined" id="timer-toggle-icon">play_arrow</span>
+                <span id="timer-toggle-text">Start session</span>
+              </button>
+              <button class="btn btn-secondary btn-sm" id="timer-reset-btn" type="button">
+                <span class="material-symbols-outlined">refresh</span>
+                <span>Reset</span>
+              </button>
+            </div>
+
+            <!-- Departure Alerts System Notification Toggle -->
+            <div id="departure-notification-toggle-row" style="display: flex; align-items: center; justify-content: space-between; margin-top: var(--space-sm); padding-top: var(--space-xs); border-top: 1px solid rgba(70, 69, 84, 0.25);">
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <span class="material-symbols-outlined" style="font-size: 16px; color: var(--color-outline);">notifications</span>
+                <span style="font-size: var(--text-label-sm); color: var(--color-on-surface-variant);">Departure alerts</span>
+              </div>
+              <label class="switch-container" title="System notification when leaving session">
+                <input type="checkbox" id="notification-toggle" class="switch-input" checked>
+                <span class="switch-slider"></span>
+              </label>
+            </div>
+
+            <!-- Dedicated 'Time for a break' Banner / State -->
+            <div id="timer-break-container" class="timer-break-banner" style="display: none;">
+              <div class="break-banner-header">
+                <span class="material-symbols-outlined" style="font-size: 20px;">coffee</span>
+                <span>Time for a break</span>
+              </div>
+              <p class="break-banner-text" id="break-banner-text">
+                Focus block 1 of 4 completed! Great focus session. Video paused automatically.
+              </p>
+              <div class="break-banner-actions">
+                <button class="btn btn-secondary btn-sm" id="timer-start-break-btn" type="button">
+                  <span class="material-symbols-outlined" style="font-size: 16px;">timer</span>
+                  <span>Start 5m break</span>
+                </button>
+                <button class="btn btn-ghost btn-sm" id="timer-skip-break-btn" type="button">
+                  <span>Skip break</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- CARD 2: Session Telemetry -->
+          <div class="card" id="session-telemetry-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-md);">
+              <span style="font-size: var(--text-label-md); text-transform: uppercase; color: var(--color-outline); letter-spacing: 0.04em;">Session Telemetry</span>
+              <span class="font-mono" style="font-size: var(--text-label-sm); color: var(--color-secondary);" id="telemetry-sync-badge">Live Sync</span>
+            </div>
+
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px; background: var(--color-surface-container-lowest); border-radius: var(--radius-lg); margin-bottom: var(--space-sm);">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="status-dot active" id="focus-status-dot"></span>
+                <span style="color: var(--color-secondary); font-weight: 600;" id="focus-status-text">Focused</span>
+              </div>
+              <span style="font-size: var(--text-body-sm); color: var(--color-outline);" id="focus-status-desc">Facing screen</span>
+            </div>
+
+            <div class="metric-two-col">
+              <div class="sub-metric-box">
+                <span style="font-size: var(--text-label-sm); color: var(--color-outline);">Focus Score</span>
+                <span class="font-mono" style="font-size: var(--text-headline-lg); font-weight: 600;" id="focus-score-display">100%</span>
+              </div>
+              <div class="sub-metric-box">
+                <span style="font-size: var(--text-label-sm); color: var(--color-outline);">Distractions</span>
+                <span class="font-mono" style="font-size: var(--text-headline-lg); font-weight: 600; color: var(--color-secondary);" id="distractions-count-display">0</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- CARD 3: Attention Tracking / Vision Guard -->
+          <div class="card" id="camera-attention-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-sm);">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <label class="switch-container" title="Toggle camera attention detection">
+                  <input type="checkbox" id="camera-attention-toggle" class="switch-input">
+                  <span class="switch-slider"></span>
+                </label>
+                <div style="display: flex; align-items: center; gap: 4px;">
+                  <span class="material-symbols-outlined" style="font-size: 18px; color: var(--color-outline);">photo_camera_front</span>
+                  <span style="font-weight: 600; font-size: var(--text-label-md);">Attention tracking</span>
+                </div>
+              </div>
+              <span id="camera-status-badge" class="engine-tag" style="color: var(--color-outline);">Standby</span>
+            </div>
+
+            <!-- Small Preview Box -->
+            <div class="camera-preview-container" id="camera-preview-container">
+              <!-- Standby State Placeholder -->
+              <div class="camera-preview-standby" id="camera-standby-placeholder">
+                <span class="material-symbols-outlined" style="font-size: 32px; color: rgba(99, 102, 241, 0.4);">face</span>
+                <span class="font-mono" style="font-size: 11px; color: var(--color-outline);">Attention tracking off</span>
+                <span style="font-size: 11px; color: var(--color-on-surface-variant); margin-top: 2px;">
+                  Toggle to detect gaze &amp; head turns
+                </span>
+              </div>
+
+              <!-- Live Video Element (Mirrored via CSS) -->
+              <video id="camera-preview-video" class="camera-preview-video" playsinline muted autoplay style="display: none;"></video>
+
+              <!-- Live HUD Telemetry Overlay -->
+              <div class="camera-hud-overlay" id="camera-hud-overlay" style="display: none;">
+                <div class="camera-hud-top">
+                  <span id="camera-hud-status-pill" class="camera-status-pill focused">ATTENTIVE</span>
+                  <span id="camera-hud-fps-text" class="font-mono" style="font-size: 10px; color: var(--color-outline); background: rgba(10, 13, 27, 0.6); padding: 1px 6px; border-radius: 4px;">6 FPS</span>
+                </div>
+                <div class="camera-hud-bottom">
+                  <span id="camera-hud-yaw-text" class="font-mono" style="font-size: 10px; color: var(--color-on-surface-variant); background: rgba(10, 13, 27, 0.6); padding: 1px 6px; border-radius: 4px;">Yaw: 0° / 25° max</span>
+                  <span class="font-mono" style="font-size: 10px; color: var(--color-secondary);">ON-DEVICE</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Small Hidden Video Element for Detection Processing -->
+            <video id="camera-hidden-video" playsinline muted autoplay style="display: none; width: 320px; height: 240px;"></video>
+            
+            <p style="font-size: var(--text-body-sm); color: var(--color-outline); margin-top: var(--space-xs); line-height: 1.4;">
+              Camera frames never leave your device. Only the public video link is sent to generate your quiz.
+            </p>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </main>
+
+  <!-- Camera Privacy Consent Modal -->
+  <div class="modal-backdrop" id="camera-privacy-modal" style="display: none;">
+    <div class="modal-card" style="max-width: 520px; width: 92%;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: var(--space-xs);">
+          <div class="icon-box" style="background-color: rgba(99, 102, 241, 0.2); color: var(--color-primary); width: 40px; height: 40px;">
+            <span class="material-symbols-outlined" style="font-size: 22px;">shield</span>
+          </div>
+          <div>
+            <h3 style="font-size: var(--text-headline-sm); font-weight: 600;">Enable Attention Tracking</h3>
+            <p style="font-size: var(--text-body-sm); color: var(--color-on-surface-variant); margin-top: 1px;">
+              On-device computer vision for deep focus
+            </p>
+          </div>
+        </div>
+      </div>
+      <div class="modal-body" style="padding: var(--space-md) var(--space-lg); display: flex; flex-direction: column; gap: var(--space-sm);">
+        <p style="font-size: var(--text-body-md); color: var(--color-on-surface); line-height: 1.5;">
+          FocusTube monitors head orientation and gaze direction to pause playback whenever you look away from the lecture for more than 1.5 seconds.
+        </p>
+        <div style="background: var(--color-surface-container-lowest); padding: var(--space-md); border-radius: var(--radius-lg); border: 1px solid rgba(74, 225, 118, 0.3); display: flex; flex-direction: column; gap: 6px;">
+          <div style="display: flex; align-items: center; gap: 6px; color: var(--color-secondary); font-weight: 600; font-size: var(--text-label-md);">
+            <span class="material-symbols-outlined" style="font-size: 18px;">lock</span>
+            <span>Privacy Guarantee</span>
+          </div>
+          <p style="font-size: var(--text-body-sm); color: var(--color-on-surface); font-weight: 500; margin: 4px 0;">
+            Camera frames never leave your device. Only the public video link is sent to generate your quiz.
+          </p>
+          <ul style="font-size: var(--text-body-sm); color: var(--color-on-surface-variant); margin: 0; padding-left: 20px; line-height: 1.6;">
+            <li>All video frames are processed locally in your browser.</li>
+            <li>No video or image frames are ever stored, recorded, or transmitted.</li>
+            <li>You can disable attention tracking at any time with the toggle.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: var(--space-sm);">
+        <button class="btn btn-ghost btn-sm" id="camera-cancel-privacy-btn" type="button">Cancel</button>
+        <button class="btn btn-primary btn-sm" id="camera-confirm-privacy-btn" type="button">
+          <span class="material-symbols-outlined" style="font-size: 18px;">videocam</span>
+          <span>Enable Camera</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Global Footer -->
+  <footer class="app-footer">
+    <div class="footer-container">
+      <div>FocusTube Study Room</div>
+      <div><a href="summary.html" style="text-decoration: underline; color: var(--color-primary);">Complete session and view analytics &rarr;</a></div>
+    </div>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="js/storage.js"></script>
+  <script src="js/player.js"></script>
+  <script src="js/timer.js"></script>
+  <script src="js/focus.js"></script>
+  <script src="js/camera.js"></script>
+</body>
+</html>

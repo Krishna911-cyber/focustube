@@ -1,0 +1,42 @@
+[
+  {
+    "start": 0,
+    "end": 60,
+    "text": "The fundamental building block for linear algebra is the vector. But depending on who you ask—a physics student, a computer science student, or a mathematician—you will get three very different answers to the question: what is a vector?"
+  },
+  {
+    "start": 60,
+    "end": 140,
+    "text": "The physics student perspective is that vectors are arrows pointing in space. What defines a vector is its length and the direction it is pointing. You can translate it anywhere in space without changing its identity."
+  },
+  {
+    "start": 140,
+    "end": 220,
+    "text": "The computer science perspective is that vectors are ordered lists of numbers. If you are tracking housing data, you might represent a house as a 2D or 4D vector where components represent square footage, bedrooms, and price."
+  },
+  {
+    "start": 220,
+    "end": 300,
+    "text": "The mathematician seeks to generalize both views: a vector is anything where there is a sensible notion of adding two vectors and multiplying a vector by a number. In this series, we root our intuition in geometric vectors anchored at the origin."
+  },
+  {
+    "start": 300,
+    "end": 380,
+    "text": "In a 2D coordinate system, we anchor the tail of each vector at the origin (0, 0). The first coordinate tells you how far to move along the horizontal x-axis, and the second tells you how far along the vertical y-axis."
+  },
+  {
+    "start": 380,
+    "end": 460,
+    "text": "Pairs of numbers give coordinates of the tip of the arrow. To add two vectors geometrically, you move the second vector so its tail sits at the tip of the first vector. The sum is the vector from the origin to the new tip."
+  },
+  {
+    "start": 460,
+    "end": 530,
+    "text": "Scalar multiplication means scaling a vector—stretching it, squishing it, or reversing its direction when multiplying by a negative number. The numbers we scale by are called scalars."
+  },
+  {
+    "start": 530,
+    "end": 593,
+    "text": "Vector addition and scalar multiplication are the two core operations that everything in linear algebra is built upon. In the next chapter, we will see how these operations lead to linear combinations, span, and basis vectors."
+  }
+]

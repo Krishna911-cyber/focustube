@@ -1,0 +1,98 @@
+[
+  {
+    "segmentStart": 252,
+    "question": "In the row picture of a 2x2 linear system, what does each equation represent geometrically?",
+    "options": [
+      "A column vector originating from the origin",
+      "A straight line in the two-dimensional xy plane",
+      "A point of intersection in three-dimensional space",
+      "A curved parabola passing through the origin"
+    ],
+    "correctIndex": 1,
+    "explanation": "In the row picture, every linear equation in two variables represents a straight line in the xy plane, and the solution is the point where the lines intersect."
+  },
+  {
+    "segmentStart": 252,
+    "question": "How does the column picture view the linear system 2x - y = 0 and -x + 2y = 3?",
+    "options": [
+      "As finding the slope and y-intercept of two lines",
+      "As finding where two planes intersect along a line",
+      "As a linear combination of column vectors (2, -1) and (-1, 2) yielding (0, 3)",
+      "As computing the inverse determinant of the row matrix"
+    ],
+    "correctIndex": 2,
+    "explanation": "The column picture combines column vectors scaled by variables x and y (x*[2, -1] + y*[-1, 2] = [0, 3]) to reach the target vector b."
+  },
+  {
+    "segmentStart": 580,
+    "question": "In a 3x3 system, what does each equation represent in the row picture?",
+    "options": [
+      "A single point in 3-dimensional space",
+      "A curved surface in space",
+      "A flat plane in three-dimensional space",
+      "A one-dimensional vector axis"
+    ],
+    "correctIndex": 2,
+    "explanation": "In three dimensions, each linear equation in x, y, and z defines a flat 2D plane in 3D space. Two planes meet in a line, and a third plane intersects that line in a point."
+  },
+  {
+    "segmentStart": 580,
+    "question": "Why is the column picture often preferred over the row picture in higher dimensions?",
+    "options": [
+      "Because visualizing multiple intersecting hyperplanes in 3D or higher is difficult, whereas combining column vectors remains visually and algebraically clear",
+      "Because the row picture cannot be computed with modern computer hardware",
+      "Because column pictures only work when the determinant is negative",
+      "Because row pictures do not support matrix multiplication"
+    ],
+    "correctIndex": 0,
+    "explanation": "Visualizing the intersection of multiple planes in 3D (or hyperplanes in n-D) is geometrically complex, whereas the column picture treats the problem simply as combining column vectors in space."
+  },
+  {
+    "segmentStart": 1100,
+    "question": "In the matrix equation Ax = b, what does the matrix A represent?",
+    "options": [
+      "The unknown variables we are trying to solve for",
+      "The coefficient matrix of the linear system",
+      "The target result vector on the right-hand side",
+      "The scalar multiplier of the system"
+    ],
+    "correctIndex": 1,
+    "explanation": "In Ax = b, matrix A contains the coefficients of the system, vector x contains the unknown variables, and vector b is the right-hand side target vector."
+  },
+  {
+    "segmentStart": 1100,
+    "question": "What happens when the three column vectors of a 3x3 matrix lie in the same flat plane?",
+    "options": [
+      "Their linear combinations can only produce vectors within that plane, making the matrix singular and non-invertible for general b",
+      "The matrix will have an infinite number of independent inverse matrices",
+      "Every vector in 3D space can be reached uniquely",
+      "The system becomes non-linear"
+    ],
+    "correctIndex": 0,
+    "explanation": "If the column vectors lie in the same plane, their span is only 2-dimensional. You cannot solve Ax = b for any vector b outside that plane, meaning the matrix is singular."
+  },
+  {
+    "segmentStart": 1400,
+    "question": "According to Gilbert Strang, what is the fundamental 'linear algebra' way to understand matrix-vector multiplication Ax?",
+    "options": [
+      "As computing determinants column by column",
+      "As calculating cross products of the rows",
+      "As a linear combination of the column vectors of A, weighted by the components of x",
+      "As calculating dot products only with the diagonal elements"
+    ],
+    "correctIndex": 2,
+    "explanation": "Ax is fundamentally a linear combination of the columns of A. The components of x specify how much of each column vector to combine."
+  },
+  {
+    "segmentStart": 1400,
+    "question": "If matrix A has columns [c1, c2] and x = [2, 3]^T, what is Ax equal to?",
+    "options": [
+      "2*c1 + 3*c2",
+      "3*c1 + 2*c2",
+      "6*(c1 + c2)",
+      "(c1 dot c2) * [2, 3]"
+    ],
+    "correctIndex": 0,
+    "explanation": "The vector x = [2, 3]^T specifies 2 times the first column c1 plus 3 times the second column c2."
+  }
+]

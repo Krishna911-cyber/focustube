@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Session Summary — FocusTube</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <style>
+    .summary-stack {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-xl);
+    }
+
+    /* Score Card */
+    .hero-score-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: var(--space-lg);
+      align-items: center;
+    }
+
+    @media (min-width: 1024px) {
+      .hero-score-grid {
+        grid-template-columns: 4fr 8fr;
+      }
+    }
+
+    .gauge-display {
+      position: relative;
+      width: 130px;
+      height: 130px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .gauge-svg {
+      transform: rotate(-90deg);
+      width: 100%;
+      height: 100%;
+    }
+
+    /* 4-Stat Ribbon */
+    .stat-ribbon {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: var(--space-md);
+    }
+
+    @media (min-width: 640px) {
+      .stat-ribbon {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (min-width: 1024px) {
+      .stat-ribbon {
+        grid-template-columns: repeat(4, 1fr);
+      }
+    }
+
+    .stat-card {
+      background-color: var(--color-surface-container-low);
+      border-radius: var(--radius-xl);
+      padding: var(--space-lg);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border: 1px solid rgba(70, 69, 84, 0.3);
+    }
+
+    .stat-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    /* Review Feed Rows */
+    .review-row {
+      background-color: var(--color-surface-container-low);
+      border: 1px solid rgba(70, 69, 84, 0.3);
+      border-radius: var(--radius-xl);
+      padding: var(--space-md);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-md);
+      transition: background-color 0.2s ease;
+    }
+
+    @media (min-width: 768px) {
+      .review-row {
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+      }
+    }
+
+    .review-row:hover {
+      background-color: var(--color-surface-container);
+    }
+
+    .clip-thumb {
+      width: 80px;
+      height: 56px;
+      border-radius: var(--radius-md);
+      background-color: var(--color-surface-container-high);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      color: var(--color-outline);
+    }
+
+    /* Sticky Bottom Action Bar */
+    .sticky-action-bar {
+      position: sticky;
+      bottom: var(--space-lg);
+      background-color: rgba(24, 27, 41, 0.95);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(70, 69, 84, 0.4);
+      border-radius: var(--radius-xl);
+      padding: var(--space-md) var(--space-lg);
+      box-shadow: var(--shadow-2xl);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-md);
+      z-index: 40;
+    }
+  </style>
+</head>
+<body>
+  <!-- Ambient Radial Glows -->
+  <div class="ambient-glow glow-indigo" style="top: 5%; right: 10%;"></div>
+  <div class="ambient-glow glow-emerald" style="top: 20%; left: 5%;"></div>
+
+  <!-- Global Header -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand-group">
+        <a href="index.html" class="brand-logo">
+          <span class="logo-icon">🎯</span>
+          <span>FocusTube</span>
+        </a>
+        <div class="engine-tag">
+          <span class="status-dot active"></span>
+          <span>Focus Engine</span>
+        </div>
+      </div>
+
+      <nav class="nav-links">
+        <a href="index.html" class="nav-link">Home</a>
+        <a href="study.html" class="nav-link">Study Room</a>
+        <a href="summary.html" class="nav-link active">Session Summary</a>
+      </nav>
+
+      <div class="header-actions">
+        <button class="btn btn-primary btn-sm" id="header-start-new-btn" type="button">
+          <span class="material-symbols-outlined">add_circle</span>
+          <span>Start new session</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <div class="container summary-stack">
+      <!-- Empty State Card (When no session exists) -->
+      <div id="summary-empty-state" class="card" style="display: none; padding: var(--space-2xl); text-align: center; max-width: 600px; margin: var(--space-2xl) auto;">
+        <div style="width: 64px; height: 64px; border-radius: 50%; background: rgba(99, 102, 241, 0.15); color: var(--color-primary); display: flex; align-items: center; justify-content: center; margin: 0 auto var(--space-md);">
+          <span class="material-symbols-outlined" style="font-size: 36px;">history_edu</span>
+        </div>
+        <h2 style="font-size: var(--text-headline-md); font-weight: 600;">No Study Session Found</h2>
+        <p style="color: var(--color-on-surface-variant); font-size: var(--text-body-md); margin: var(--space-xs) 0 var(--space-lg); line-height: 1.5;">
+          Complete a study block in the study room to see your focus score, time breakdown, and replay bookmarks.
+        </p>
+        <a href="index.html#video-picker" class="btn btn-primary" style="display: inline-flex;">
+          <span class="material-symbols-outlined">play_arrow</span>
+          <span>Start a Study Session</span>
+        </a>
+      </div>
+
+      <!-- Active Session Dashboard Container -->
+      <div id="summary-dashboard" style="display: flex; flex-direction: column; gap: var(--space-md);">
+        <!-- Top Celebration Header Card -->
+        <div class="card" style="padding: var(--space-xl);">
+          <div style="display: flex; align-items: center; gap: var(--space-sm); margin-bottom: var(--space-xs);">
+            <span class="engine-tag" style="color: var(--color-secondary); background: rgba(74, 225, 118, 0.15);">
+              <span class="status-dot active"></span>
+              <span>Block Verified</span>
+            </span>
+            <span class="font-mono" id="summary-session-tag" style="font-size: var(--text-label-sm); color: var(--color-outline);">SESSION</span>
+          </div>
+
+          <h1 id="summary-session-title" style="font-size: var(--text-display-lg); font-weight: 700; margin-top: 4px;">
+            Session complete <span style="font-size: 32px;">🎉</span>
+          </h1>
+          <p id="summary-session-subtitle" style="font-size: var(--text-body-lg); color: var(--color-on-surface-variant); margin-top: 4px;">
+            Study block completed
+          </p>
+        </div>
+
+        <!-- Hero Focus Score Card -->
+        <div class="card" style="padding: var(--space-xl);">
+          <div class="hero-score-grid">
+            <div style="display: flex; align-items: center; gap: var(--space-lg);">
+              <div class="gauge-display">
+                <svg class="gauge-svg" viewBox="0 0 120 120">
+                  <circle cx="60" cy="60" r="50" fill="transparent" stroke="var(--color-surface-container-highest)" stroke-width="8" />
+                  <circle id="summary-gauge-circle" cx="60" cy="60" r="50" fill="transparent" stroke="var(--color-secondary)" stroke-width="8" stroke-dasharray="314" stroke-dashoffset="0" stroke-linecap="round" style="transition: stroke-dashoffset 0.6s ease, stroke 0.6s ease;" />
+                </svg>
+                <div style="position: absolute; text-align: center;">
+                  <span class="font-mono" id="summary-focus-score" style="font-size: 36px; font-weight: 700; line-height: 1;">--%</span>
+                  <div style="font-size: var(--text-label-sm); color: var(--color-outline); text-transform: uppercase;">Score</div>
+                </div>
+              </div>
+
+              <div>
+                <div style="display: flex; align-items: center; gap: 6px; color: var(--color-secondary); font-weight: 600;" id="summary-retention-zone-wrap">
+                  <span class="status-dot active"></span>
+                  <span id="summary-retention-zone">Focus Assessment</span>
+                </div>
+                <p style="font-size: var(--text-body-sm); color: var(--color-outline); margin-top: 2px;" id="summary-attentiveness-tier">Attention Rating</p>
+              </div>
+            </div>
+
+            <div style="background: rgba(38, 41, 56, 0.6); padding: var(--space-lg); border-radius: var(--radius-xl); display: flex; flex-direction: column; gap: var(--space-xs);">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: var(--text-headline-sm); font-weight: 600;" id="summary-assessment-headline">Session Assessment</span>
+                <span class="engine-tag" id="summary-assessment-tag" style="color: var(--color-primary);">Analyzing</span>
+              </div>
+              <p id="summary-assessment-text" style="color: var(--color-on-surface-variant); font-size: var(--text-body-md);">
+                Computing your session focus metrics…
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4-Stat Metric Ribbon -->
+        <div class="stat-ribbon">
+          <!-- Card 1: Study Time -->
+          <div class="stat-card">
+            <div class="stat-info">
+              <span style="font-size: var(--text-label-sm); color: var(--color-outline); text-transform: uppercase;">Study time</span>
+              <span class="font-mono" id="stat-study-time" style="font-size: var(--text-headline-lg); font-weight: 700;">--:--</span>
+              <span id="stat-study-target" style="font-size: var(--text-body-sm); color: var(--color-on-surface-variant);">Target: --m</span>
+            </div>
+            <div class="icon-box" style="color: var(--color-primary);">
+              <span class="material-symbols-outlined">schedule</span>
+            </div>
+          </div>
+
+          <!-- Card 2: Focused -->
+          <div class="stat-card">
+            <div class="stat-info">
+              <span style="font-size: var(--text-label-sm); color: var(--color-secondary); text-transform: uppercase;">Focused</span>
+              <span class="font-mono" id="stat-focused-time" style="font-size: var(--text-headline-lg); font-weight: 700; color: var(--color-secondary);">--:--</span>
+              <span id="stat-focused-sub" style="font-size: var(--text-body-sm); color: var(--color-on-surface-variant);">--.-% attentive</span>
+            </div>
+            <div class="icon-box" style="color: var(--color-secondary);">
+              <span class="material-symbols-outlined">check_circle</span>
+            </div>
+          </div>
+
+          <!-- Card 3: Looking away -->
+          <div class="stat-card">
+            <div class="stat-info">
+              <span style="font-size: var(--text-label-sm); color: var(--color-tertiary); text-transform: uppercase;">Looking away</span>
+              <span class="font-mono" id="stat-looking-away" style="font-size: var(--text-headline-lg); font-weight: 700; color: var(--color-tertiary);">00:00</span>
+              <span id="stat-looking-away-sub" style="font-size: var(--text-body-sm); color: var(--color-on-surface-variant);">0 occurrences</span>
+            </div>
+            <div class="icon-box" style="color: var(--color-tertiary);">
+              <span class="material-symbols-outlined">visibility_off</span>
+            </div>
+          </div>
+
+          <!-- Card 4: Away from tab -->
+          <div class="stat-card">
+            <div class="stat-info">
+              <span style="font-size: var(--text-label-sm); color: var(--color-outline); text-transform: uppercase;">Away from tab</span>
+              <span class="font-mono" id="stat-away-tab" style="font-size: var(--text-headline-lg); font-weight: 700; color: var(--color-on-surface-variant);">00:00</span>
+              <span id="stat-away-tab-sub" style="font-size: var(--text-body-sm); color: var(--color-on-surface-variant);">0 tab switches</span>
+            </div>
+            <div class="icon-box" style="color: var(--color-outline);">
+              <span class="material-symbols-outlined">open_in_new</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Review Feed: Moments You Zoned Out -->
+        <section id="distractions-review-section" style="display: flex; flex-direction: column; gap: var(--space-md);">
+          <div>
+            <h2 style="font-size: var(--text-headline-lg); font-weight: 600;">Moments you zoned out</h2>
+            <p style="font-size: var(--text-body-md); color: var(--color-on-surface-variant); margin-top: 2px;">
+              Review the concepts taught while your attention drifted:
+            </p>
+          </div>
+
+          <!-- Empty State Card (displayed when no distractions) -->
+          <div id="distractions-empty-state" class="card" style="display: none; padding: var(--space-xl); text-align: center; background: rgba(74, 225, 118, 0.06); border: 1px solid rgba(74, 225, 118, 0.3);">
+            <div style="width: 56px; height: 56px; border-radius: 50%; background: rgba(74, 225, 118, 0.15); color: var(--color-secondary); display: flex; align-items: center; justify-content: center; margin: 0 auto;">
+              <span class="material-symbols-outlined" style="font-size: 32px;">verified</span>
+            </div>
+            <h3 style="font-size: var(--text-headline-sm); font-weight: 600; margin-top: var(--space-sm); color: var(--color-on-surface);">
+              No distractions, perfect focus! 🎉
+            </h3>
+            <p style="color: var(--color-on-surface-variant); font-size: var(--text-body-md); max-width: 480px; margin: 4px auto 0;">
+              You maintained uninterrupted attention throughout this entire study block. Zero lapses registered.
+            </p>
+          </div>
+
+          <!-- Dynamic Review List Container -->
+          <div id="distractions-review-list" style="display: flex; flex-direction: column; gap: var(--space-md);">
+            <!-- Populated dynamically via js/summary.js -->
+          </div>
+        </section>
+
+        <!-- Active Recall Prompt Callout (AI Recall Quiz on Distractions) -->
+        <div class="card" id="active-recall-quiz-card" style="display: flex; flex-direction: column; gap: var(--space-md); background: rgba(128, 131, 255, 0.08); border-color: rgba(99, 102, 241, 0.3);">
+          <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-md);">
+            <div style="display: flex; align-items: center; gap: var(--space-md);">
+              <div class="icon-box" id="quiz-card-icon-box" style="background-color: var(--color-primary-container); color: var(--color-on-primary); width: 48px; height: 48px;">
+                <span class="material-symbols-outlined" id="quiz-card-icon" style="font-size: 26px;">psychology</span>
+              </div>
+              <div>
+                <h3 id="quiz-card-title" style="font-size: var(--text-headline-sm); font-weight: 600;">Cement memories immediately</h3>
+                <p id="quiz-card-subtitle" style="font-size: var(--text-body-sm); color: var(--color-on-surface-variant); margin-top: 2px;">
+                  Testing yourself right after studying helps reinforce key concepts from the video.
+                </p>
+              </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: var(--space-sm);">
+              <div id="quiz-card-badge" class="engine-tag font-mono" style="color: var(--color-primary); background: rgba(99, 102, 241, 0.2);">
+                PREPARING…
+              </div>
+              <a href="quiz.html" class="btn btn-primary btn-sm" id="card-take-quiz-btn" style="box-shadow: 0 0 16px rgba(99, 102, 241, 0.3);">
+                <span class="material-symbols-outlined" style="font-size: 18px;">auto_awesome</span>
+                <span id="card-take-quiz-btn-text">Take recall quiz</span>
+              </a>
+              <button class="btn btn-secondary btn-sm" id="quiz-retry-btn" type="button" style="display: none;">
+                <span class="material-symbols-outlined" style="font-size: 16px;">refresh</span>
+                <span>Retry generation</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sticky Bottom Action Bar -->
+        <div class="sticky-action-bar">
+          <div>
+            <button class="btn btn-ghost btn-sm" id="export-notes-btn" type="button">
+              <span class="material-symbols-outlined">download</span>
+              <span>Export session notes</span>
+            </button>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: var(--space-sm);">
+            <button class="btn btn-primary btn-sm" id="take-quiz-action-btn" type="button">
+              <span class="material-symbols-outlined" style="font-size: 18px;">auto_awesome</span>
+              <span>Take recall quiz</span>
+            </button>
+            <button class="btn btn-secondary btn-sm" id="summary-start-new-btn" type="button">
+              <span class="material-symbols-outlined">add_circle</span>
+              <span>Start new session</span>
+            </button>
+            <a href="index.html" class="btn btn-ghost btn-sm">
+              <span class="material-symbols-outlined">home</span>
+              <span>Home</span>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- IN-PAGE EMBEDDED REPLAY MODAL -->
+  <div class="modal-backdrop" id="replay-player-modal" style="display: none;">
+    <div class="modal-card" style="max-width: 800px; width: 92%;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: var(--space-xs);">
+          <span class="material-symbols-outlined" style="color: var(--color-primary); font-size: 24px;">replay</span>
+          <div>
+            <h3 id="replay-modal-title" style="font-size: var(--text-headline-sm); font-weight: 600;">Distraction Replay</h3>
+            <p style="font-size: var(--text-body-sm); color: var(--color-on-surface-variant); margin-top: 1px;">
+              Seeking to 5 seconds before the distracted timestamp
+            </p>
+          </div>
+        </div>
+        <button class="btn-ghost" id="replay-modal-close" style="padding: 4px; border-radius: var(--radius-md);" title="Close Replay">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+      <div class="modal-body" style="padding: 0; aspect-ratio: 16 / 9; background: #000; position: relative; overflow: hidden; border-radius: var(--radius-md);">
+        <div id="summary-replay-player" style="position: absolute; inset: 0; width: 100%; height: 100%;"></div>
+      </div>
+      <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
+        <span id="replay-modal-note" style="font-size: var(--text-body-sm); color: var(--color-on-surface-variant);">
+          Ad-free, recommendation-free study stream.
+        </span>
+        <button class="btn btn-secondary btn-sm" id="replay-modal-done-btn" type="button">Close Replay</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Global Footer -->
+  <footer class="app-footer">
+    <div class="footer-container">
+      <div>FocusTube Session Summary</div>
+      <div>Camera frames never leave your device. Only the public video link is sent to generate your quiz.</div>
+    </div>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="js/storage.js"></script>
+  <script src="js/summary.js"></script>
+</body>
+</html>

@@ -1,0 +1,74 @@
+[
+  {
+    "segmentStart": 114,
+    "question": "What is the physics perspective on what a vector is?",
+    "options": [
+      "An ordered list of spreadsheet numbers",
+      "An arrow pointing in space defined by length and direction, which can be moved freely without changing identity",
+      "An abstract object defined purely by mathematical axioms of vector spaces",
+      "A memory pointer to a numerical array in memory"
+    ],
+    "correctIndex": 1,
+    "explanation": "In physics, vectors are arrows pointing in space, characterized solely by their length (magnitude) and direction, invariant under translation."
+  },
+  {
+    "segmentStart": 114,
+    "question": "How does the computer science perspective primarily view a vector?",
+    "options": [
+      "As an arrow fixed to the physical coordinate origin",
+      "As a force acting upon a mass in motion",
+      "As an ordered list of numbers representing features or data points",
+      "As an irreducible continuous field"
+    ],
+    "correctIndex": 2,
+    "explanation": "In computer science, a vector is typically an ordered list of numbers representing distinct features (e.g. dimensions of house data: area, bedrooms, price)."
+  },
+  {
+    "segmentStart": 320,
+    "question": "In the geometric coordinate representation used in linear algebra, where is the tail of each vector anchored?",
+    "options": [
+      "At the tip of the preceding vector",
+      "At the coordinate origin (0, 0)",
+      "At the coordinates of the first variable",
+      "At the unit length (1, 1)"
+    ],
+    "correctIndex": 1,
+    "explanation": "In linear algebra coordinates, vectors are standardly anchored with their tail at the origin (0, 0), so coordinates describe the location of the arrow's tip."
+  },
+  {
+    "segmentStart": 320,
+    "question": "In a 2D coordinate vector [3, -2], what does the second number (-2) represent?",
+    "options": [
+      "Moving 2 units to the right along the x-axis",
+      "Moving 2 units downward along the vertical y-axis",
+      "The angle in radians from the horizontal axis",
+      "The length of the vector multiplied by -2"
+    ],
+    "correctIndex": 1,
+    "explanation": "The second coordinate indicates vertical movement along the y-axis; -2 means moving down 2 units from the origin."
+  },
+  {
+    "segmentStart": 490,
+    "question": "How is vector addition (v + w) visualized geometrically?",
+    "options": [
+      "By multiplying the lengths and adding the angles",
+      "By placing the tail of vector w at the tip of vector v and drawing the arrow from the origin to the new tip",
+      "By finding the point where the two arrows cross in space",
+      "By reflecting vector w across the line defined by vector v"
+    ],
+    "correctIndex": 1,
+    "explanation": "Geometrically, vector addition is the tip-to-tail method: translate the second vector so its tail sits on the tip of the first; the sum goes from the origin to the second tip."
+  },
+  {
+    "segmentStart": 490,
+    "question": "What does multiplying a vector by a negative scalar (e.g., -2) do geometrically?",
+    "options": [
+      "Rotates the vector by 90 degrees clockwise",
+      "Flips the direction of the vector 180 degrees and doubles its length",
+      "Reduces the vector's length to half without altering direction",
+      "Sets the coordinates to zero"
+    ],
+    "correctIndex": 1,
+    "explanation": "Multiplying by a negative scalar reverses the vector's direction (180 degree flip) and scales its magnitude by the absolute value (here, 2x)."
+  }
+]

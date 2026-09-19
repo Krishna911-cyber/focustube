@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FocusTube — Distraction-Free Study Player</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <!-- Three.js for Focus Orb Visualization -->
+  <script src="https://ajax.googleapis.com/ajax/libs/threejs/r125/three.min.js"></script>
+  <style>
+    /* Hero Grid Scaffolding */
+    .hero-section {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: var(--space-xl);
+      padding: var(--space-lg) 0 var(--space-xl);
+      position: relative;
+    }
+
+    @media (min-width: 1024px) {
+      .hero-section {
+        grid-template-columns: 7fr 5fr;
+        align-items: center;
+      }
+    }
+
+    .hero-text {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: var(--space-md);
+      z-index: 10;
+    }
+
+    .badge-neural {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-xs);
+      padding: 4px 14px;
+      border-radius: var(--radius-full);
+      background-color: var(--color-surface-container-high);
+      font-size: var(--text-label-sm);
+      font-weight: 600;
+      color: var(--color-secondary);
+      letter-spacing: var(--track-label-sm);
+      text-transform: uppercase;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .hero-title {
+      font-size: var(--text-display-lg);
+      line-height: var(--line-display-lg);
+      font-weight: 600;
+      letter-spacing: var(--track-display-lg);
+      color: var(--color-on-surface);
+    }
+
+    .hero-title .highlight {
+      color: var(--color-primary);
+      text-shadow: var(--glow-primary);
+    }
+
+    .hero-subtitle {
+      font-size: var(--text-body-lg);
+      line-height: var(--line-body-lg);
+      color: var(--color-on-surface-variant);
+      max-width: 540px;
+    }
+
+    .cta-group {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: var(--space-md);
+      padding-top: var(--space-xs);
+    }
+
+    .trust-chips {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: var(--space-lg);
+      color: var(--color-on-surface-variant);
+      font-size: var(--text-label-md);
+      padding-top: var(--space-xs);
+    }
+
+    .trust-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Spatial Bio-Telemetry Card & Three.js Canvas */
+    .orb-card {
+      position: relative;
+      background-color: var(--color-surface-container-low);
+      border: 1px solid rgba(70, 69, 84, 0.4);
+      border-radius: var(--radius-2xl);
+      padding: var(--space-md);
+      box-shadow: var(--shadow-2xl);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      overflow: hidden;
+    }
+
+    .orb-card-glow {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 50% 50%, rgba(99, 102, 241, 0.15) 0%, rgba(74, 225, 118, 0.05) 50%, transparent 80%);
+      pointer-events: none;
+    }
+
+    .orb-header {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: var(--space-sm);
+      z-index: 2;
+    }
+
+    #threejs-orb-container {
+      width: 100%;
+      height: 300px;
+      position: relative;
+      cursor: grab;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #threejs-orb-container:active {
+      cursor: grabbing;
+    }
+
+    .orb-telemetry-row {
+      width: 100%;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: var(--space-xs);
+      padding-top: var(--space-sm);
+      z-index: 2;
+    }
+
+    .orb-telemetry-box {
+      background-color: var(--color-surface-container);
+      padding: 8px 12px;
+      border-radius: var(--radius-md);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      text-align: center;
+    }
+
+    /* Section Separators */
+    .section-separator {
+      max-width: var(--max-width);
+      margin: var(--space-xl) auto var(--space-lg);
+      display: flex;
+      align-items: center;
+      gap: var(--space-md);
+    }
+
+    .separator-tag {
+      font-family: var(--font-family-mono);
+      font-size: var(--text-label-sm);
+      color: var(--color-outline);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      white-space: nowrap;
+    }
+
+    .separator-line {
+      flex: 1;
+      height: 1px;
+      background-color: var(--color-surface-container-highest);
+    }
+
+    /* Feature Grid (Responsive 4-Card Matrix) */
+    .features-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: var(--gutter);
+      margin-bottom: var(--space-xl);
+    }
+
+    @media (min-width: 640px) {
+      .features-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (min-width: 1024px) {
+      .features-grid {
+        grid-template-columns: repeat(4, 1fr);
+      }
+    }
+
+    .feature-card {
+      background-color: var(--color-surface-container-low);
+      border: 1px solid rgba(70, 69, 84, 0.4);
+      border-radius: var(--radius-2xl);
+      padding: var(--space-xl);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 280px;
+      box-shadow: var(--shadow-md);
+      transition: background-color 0.25s ease, transform 0.25s ease, border-color 0.25s ease;
+    }
+
+    .feature-card:hover {
+      background-color: var(--color-surface-container);
+      border-color: rgba(99, 102, 241, 0.5);
+      transform: translateY(-2px);
+    }
+
+    .feature-icon-box {
+      width: 48px;
+      height: 48px;
+      border-radius: var(--radius-xl);
+      background-color: var(--color-surface-container-high);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background-color 0.2s ease, color 0.2s ease;
+    }
+
+    .feature-card:hover .feature-icon-box.icon-primary {
+      background-color: var(--color-primary-accent);
+      color: #ffffff;
+    }
+
+    .feature-card:hover .feature-icon-box.icon-secondary {
+      background-color: var(--color-secondary-accent);
+      color: #ffffff;
+    }
+
+    .feature-card:hover .feature-icon-box.icon-tertiary {
+      background-color: var(--color-tertiary-accent);
+      color: #ffffff;
+    }
+
+    .feature-tag {
+      font-size: var(--text-label-sm);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin: 12px 0 4px;
+      display: block;
+      font-weight: 600;
+    }
+
+    .feature-title {
+      font-size: var(--text-headline-md);
+      line-height: var(--line-headline-md);
+      font-weight: 600;
+      color: var(--color-on-surface);
+    }
+
+    .feature-desc {
+      font-size: var(--text-body-md);
+      line-height: var(--line-body-md);
+      color: var(--color-on-surface-variant);
+      margin-top: 8px;
+    }
+
+    .feature-visual-box {
+      margin-top: var(--space-lg);
+      padding: var(--space-md);
+      background-color: rgba(10, 13, 27, 0.6);
+      border-radius: var(--radius-xl);
+      border: 1px solid rgba(70, 69, 84, 0.2);
+    }
+
+    /* Protocol / Demonstration Section */
+    .protocol-card {
+      background-color: var(--color-surface-container-low);
+      border: 1px solid rgba(70, 69, 84, 0.4);
+      border-radius: var(--radius-2xl);
+      padding: var(--space-xl);
+      box-shadow: var(--shadow-xl);
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: var(--space-xl);
+      align-items: center;
+      margin-bottom: var(--space-xl);
+    }
+
+    @media (min-width: 1024px) {
+      .protocol-card {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    .protocol-mock-img-box {
+      position: relative;
+      border-radius: var(--radius-xl);
+      overflow: hidden;
+      aspect-ratio: 16 / 9;
+      background-color: var(--color-surface-container-lowest);
+    }
+
+    .protocol-mock-img-box img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: 0.85;
+      transition: opacity 0.3s ease;
+    }
+
+    .protocol-mock-img-box:hover img {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <!-- Ambient Radial Glows -->
+  <div class="ambient-glow glow-indigo" style="top: 8%; left: 35%;"></div>
+  <div class="ambient-glow glow-emerald" style="top: 20%; right: 8%;"></div>
+
+  <!-- Global Navigation Header -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand-group">
+        <a href="index.html" class="brand-logo">
+          <span class="logo-icon">🎯</span>
+          <span>FocusTube</span>
+        </a>
+        <div class="engine-tag">
+          <span class="status-dot active"></span>
+          <span>Focus &amp; Study Engine</span>
+        </div>
+      </div>
+
+      <nav class="nav-links">
+        <a href="#video-picker" class="nav-link">Lectures</a>
+        <a href="#features" class="nav-link">How it works</a>
+        <a href="study.html" class="nav-link">Study Room</a>
+        <a href="summary.html" class="nav-link">Analytics</a>
+      </nav>
+
+      <div class="header-actions">
+        <a href="#video-picker" class="btn btn-primary btn-sm">Start Studying</a>
+        <div class="user-avatar" title="Account">
+          <span class="material-symbols-outlined" style="font-size: 18px;">person</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <div class="container">
+      
+      <!-- HERO SECTION -->
+      <section class="hero-section">
+        <!-- Left Column: Typography & CTAs -->
+        <div class="hero-text">
+          <!-- Attention Status Pill -->
+          <div class="badge-neural">
+            <span class="status-dot active"></span>
+            <span>On-Device Attention Tracking Active</span>
+          </div>
+
+          <!-- Headline Sequence -->
+          <h1 class="hero-title">
+            Study smarter. <br />
+            <span class="highlight">Recover what you missed.</span>
+          </h1>
+
+          <p class="hero-subtitle">
+            A distraction-free study player that detects when you look away and uses AI to generate recall quizzes on the exact concepts you missed.
+          </p>
+
+          <!-- CTAs -->
+          <div class="cta-group">
+            <a href="#video-picker" class="btn btn-primary" id="hero-start-btn">
+              <span class="material-symbols-outlined">play_arrow</span>
+              <span>Start a session</span>
+            </a>
+            <button class="btn btn-secondary" id="demo-modal-trigger" type="button">
+              <span class="material-symbols-outlined" style="color: var(--color-tertiary);">videocam</span>
+              <span>Watch demo (1m 40s)</span>
+            </button>
+          </div>
+
+          <!-- Live Attention Badges -->
+          <div class="trust-chips">
+            <div class="trust-chip">
+              <span class="material-symbols-outlined" style="color: var(--color-secondary); font-size: 18px;">verified_user</span>
+              <span>100% Client-Side Vision</span>
+            </div>
+            <span style="color: var(--color-outline-variant);">•</span>
+            <div class="trust-chip">
+              <span class="material-symbols-outlined" style="color: var(--color-tertiary); font-size: 18px;">offline_bolt</span>
+              <span>On-Device Detection</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column: Interactive Focus Orb Card -->
+        <div class="orb-card">
+          <div class="orb-card-glow"></div>
+          
+          <div class="orb-header">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span class="status-dot active"></span>
+              <span style="font-size: var(--text-label-sm); text-transform: uppercase; color: var(--color-on-surface-variant); letter-spacing: 0.04em;">Focus Visualizer</span>
+            </div>
+            <span class="engine-tag" style="color: var(--color-primary);">Focus State</span>
+          </div>
+
+          <!-- 3D Three.js Container -->
+          <div id="threejs-orb-container"></div>
+
+          <!-- Real-time HUD pills beneath orb -->
+          <div class="orb-telemetry-row font-mono">
+            <div class="orb-telemetry-box">
+              <span style="font-size: var(--text-label-sm); color: var(--color-outline);">TRACKING</span>
+              <span style="font-size: var(--text-headline-sm); font-weight: 600; color: var(--color-secondary);">ON-DEVICE</span>
+            </div>
+            <div class="orb-telemetry-box">
+              <span style="font-size: var(--text-label-sm); color: var(--color-outline);">STATE</span>
+              <span style="font-size: var(--text-headline-sm); font-weight: 600; color: var(--color-on-surface);">ATTENTIVE</span>
+            </div>
+            <div class="orb-telemetry-box">
+              <span style="font-size: var(--text-label-sm); color: var(--color-outline);">PRIVACY</span>
+              <span style="font-size: var(--text-headline-sm); font-weight: 600; color: var(--color-primary);">LOCAL ONLY</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIDEO PICKER SECTION -->
+      <section class="video-picker-section" id="video-picker">
+        <div class="section-separator" style="margin-top: 0;">
+          <span class="separator-tag">01 // SELECT SESSION</span>
+          <div class="separator-line"></div>
+        </div>
+
+        <div class="section-header-row">
+          <h2 class="section-title">Curated Deep-Work Sessions</h2>
+          <p class="section-desc">
+            Choose a lecture below to launch your distraction-free study room. All attention tracking and focus recovery bookmarks sync seamlessly to your session telemetry.
+          </p>
+        </div>
+
+        <!-- Video Cards Grid -->
+        <div class="video-picker-grid" id="video-picker-grid">
+          <!-- Dynamically populated via JS from data/videos.json -->
+        </div>
+
+        <!-- Or Paste a YouTube Link Card -->
+        <div class="paste-url-card" id="custom-video-paste-section">
+          <div class="paste-header-row">
+            <span class="material-symbols-outlined" style="color: var(--color-primary); font-size: 24px;">playlist_add</span>
+            <div>
+              <h3 style="font-size: var(--text-headline-sm); font-weight: 600;">Or paste a YouTube video or playlist link</h3>
+              <p style="font-size: var(--text-body-sm); color: var(--color-on-surface-variant); margin-top: 2px;">
+                Paste any single lecture or curriculum playlist link to launch an ad-free study room with queue controls and continuous Pomodoro timing.
+              </p>
+            </div>
+          </div>
+
+          <form class="paste-input-form" id="paste-url-form">
+            <div class="paste-input-row">
+              <input 
+                type="text" 
+                id="video-url-input" 
+                class="video-url-input" 
+                placeholder="e.g. https://www.youtube.com/playlist?list=... or video link"
+                autocomplete="off"
+                spellcheck="false"
+              />
+              <button class="btn btn-primary" id="add-video-btn" type="submit">
+                <span class="material-symbols-outlined">add</span>
+                <span>Add to study</span>
+              </button>
+            </div>
+
+            <!-- Inline Error Box -->
+            <div class="paste-error-box" id="paste-error-box" role="alert"></div>
+
+            <!-- Confirmation Card -->
+            <div class="paste-confirm-card" id="paste-confirm-card"></div>
+          </form>
+
+          <!-- Recent Custom Videos Container -->
+          <div class="recent-custom-section" id="recent-custom-videos-container" style="display: none;">
+            <div style="display: flex; align-items: center; justify-content: space-between; border-top: 1px solid rgba(70, 69, 84, 0.3); padding-top: var(--space-md); margin-top: var(--space-xs);">
+              <span style="font-size: var(--text-label-sm); font-weight: 600; text-transform: uppercase; color: var(--color-outline); letter-spacing: 0.05em;">
+                Recent Custom Lectures
+              </span>
+            </div>
+            <div class="recent-custom-grid" id="recent-custom-videos-grid"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- FEATURES SECTION -->
+      <section id="features" style="margin-top: var(--space-xl);">
+        <div class="section-separator">
+          <span class="separator-tag">02 // CORE ARCHITECTURE</span>
+          <div class="separator-line"></div>
+        </div>
+
+        <div class="section-header-row">
+          <h2 class="section-title">Engineered for sustained attention</h2>
+          <p class="section-desc">
+            FocusTube removes algorithmic clutter and transforms streaming video into a focused study tool.
+          </p>
+        </div>
+
+        <div class="features-grid">
+          <!-- Feature Card 1: No recommendations -->
+          <div class="feature-card">
+            <div>
+              <div class="feature-icon-box icon-primary" style="color: var(--color-primary);">
+                <span class="material-symbols-outlined" style="font-size: 26px;">shield_with_heart</span>
+              </div>
+              <span class="feature-tag" style="color: var(--color-primary);">Distraction-Free</span>
+              <h3 class="feature-title">No recommendations</h3>
+              <p class="feature-desc">
+                Eliminate algorithmic sidebars, recommended videos, and comments. FocusTube displays only your selected lecture so you can stay fully focused on learning.
+              </p>
+            </div>
+            <div class="feature-visual-box">
+              <div style="display: flex; justify-content: space-between; align-items: center; font-size: var(--text-label-sm); margin-bottom: 6px;">
+                <span style="color: var(--color-outline);">Algorithmic Feeds</span>
+                <span style="color: var(--color-secondary);" class="font-mono">Blocked</span>
+              </div>
+              <svg style="width: 100%; height: 28px; color: var(--color-outline-variant);" fill="none" preserveAspectRatio="none" viewBox="0 0 100 24">
+                <path d="M0 20 L30 18 L55 21 L70 20 L100 20" stroke="currentColor" stroke-linecap="round" stroke-width="2"></path>
+                <path d="M0 20 L30 18 L55 21 L70 20 L100 20 L100 24 L0 24 Z" fill="currentColor" fill-opacity="0.12"></path>
+              </svg>
+            </div>
+          </div>
+
+          <!-- Feature Card 2: Focus tracking -->
+          <div class="feature-card">
+            <div>
+              <div class="feature-icon-box icon-secondary" style="color: var(--color-secondary);">
+                <span class="material-symbols-outlined" style="font-size: 26px;">visibility</span>
+              </div>
+              <span class="feature-tag" style="color: var(--color-secondary);">Attention Detection</span>
+              <h3 class="feature-title">Focus tracking</h3>
+              <p class="feature-desc">
+                On-device head and gaze tracking detects when you look away from the lecture. When your attention drifts, FocusTube pauses the video and marks the moment so you don't miss key concepts.
+              </p>
+            </div>
+            <div class="feature-visual-box" style="display: flex; align-items: center; justify-content: space-between;">
+              <div>
+                <div style="font-size: var(--text-label-sm); color: var(--color-outline);">TRACKING MODE</div>
+                <div class="font-mono" style="font-size: var(--text-headline-sm); font-weight: 600; color: var(--color-on-surface);">Head &amp; Gaze</div>
+              </div>
+              <svg style="width: 36px; height: 36px; color: var(--color-secondary);" viewBox="0 0 36 36">
+                <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="var(--color-surface-container-highest)" stroke-width="3"></path>
+                <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-dasharray="100, 100" stroke-linecap="round" stroke-width="3"></path>
+              </svg>
+            </div>
+          </div>
+
+          <!-- Feature Card 3: Replay missed moments -->
+          <div class="feature-card">
+            <div>
+              <div class="feature-icon-box icon-tertiary" style="color: var(--color-tertiary);">
+                <span class="material-symbols-outlined" style="font-size: 26px;">history</span>
+              </div>
+              <span class="feature-tag" style="color: var(--color-tertiary);">Instant Replay</span>
+              <h3 class="feature-title">Replay missed moments</h3>
+              <p class="feature-desc">
+                Never rewatch an entire hour just to find what you missed. FocusTube bookmarks exact timestamps where you looked away, allowing you to jump straight back with 5 seconds of lead-in context.
+              </p>
+            </div>
+            <div class="feature-visual-box">
+              <div style="display: flex; justify-content: space-between; font-size: var(--text-label-sm); margin-bottom: 6px;">
+                <span style="color: var(--color-outline);">Auto-Bookmark</span>
+                <span class="font-mono" style="color: var(--color-tertiary);">Distraction Log</span>
+              </div>
+              <div style="width: 100%; height: 8px; background: var(--color-surface-container-highest); border-radius: var(--radius-full); overflow: hidden; display: flex;">
+                <div style="width: 45%; background: var(--color-secondary); height: 100%;"></div>
+                <div style="width: 15%; background: var(--color-tertiary); height: 100%;"></div>
+                <div style="flex: 1; background: var(--color-secondary); height: 100%;"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Feature Card 4: AI recall quiz -->
+          <div class="feature-card">
+            <div>
+              <div class="feature-icon-box icon-primary" style="color: var(--color-primary); background-color: rgba(99, 102, 241, 0.15);">
+                <span class="material-symbols-outlined" style="font-size: 26px;">psychology</span>
+              </div>
+              <span class="feature-tag" style="color: var(--color-primary);">Targeted Reinforcement</span>
+              <h3 class="feature-title">AI recall quiz</h3>
+              <p class="feature-desc">
+                FocusTube uses AI to generate short recall quizzes focused only on the specific moments where your attention drifted, making sure you master what you missed.
+              </p>
+            </div>
+            <div class="feature-visual-box" style="display: flex; align-items: center; justify-content: space-between;">
+              <div>
+                <div style="font-size: var(--text-label-sm); color: var(--color-outline);">SMART QUIZ</div>
+                <div class="font-mono" style="font-size: var(--text-headline-sm); font-weight: 600; color: var(--color-primary);">Missed Parts Only</div>
+              </div>
+              <span class="material-symbols-outlined" style="font-size: 30px; color: var(--color-primary);">auto_awesome</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- WORKSPACE DEMO SECTION -->
+      <section style="margin-bottom: var(--space-xl);">
+        <div class="protocol-card">
+          <div class="protocol-mock-img-box">
+            <img 
+              src="assets/workspace-preview.jpg" 
+              alt="High-focus dark study workspace" 
+            />
+            <div style="position: absolute; top: 12px; left: 12px; background: rgba(10, 13, 27, 0.85); backdrop-filter: blur(8px); padding: 4px 10px; border-radius: var(--radius-sm); font-size: var(--text-label-sm); display: flex; align-items: center; gap: 6px;">
+              <span class="status-dot active"></span>
+              <span>Study Workspace Feed</span>
+            </div>
+            <div style="position: absolute; bottom: 12px; right: 12px; background: rgba(10, 13, 27, 0.85); backdrop-filter: blur(8px); padding: 4px 10px; border-radius: var(--radius-sm); font-size: var(--text-label-sm); color: var(--color-secondary); font-family: var(--font-family-mono); display: flex; align-items: center; gap: 6px;">
+              <span class="material-symbols-outlined" style="font-size: 16px;">lock</span>
+              <span>Camera frames stay on device</span>
+            </div>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: var(--space-md);">
+            <div style="font-size: var(--text-label-sm); font-weight: 700; color: var(--color-primary); text-transform: uppercase; letter-spacing: 0.05em;">
+              Built for Deep Learning
+            </div>
+            <h2 style="font-size: var(--text-headline-lg); line-height: var(--line-headline-lg); font-weight: 600; color: var(--color-on-surface);">
+              Designed for technical lectures, papers, and complex tutorials.
+            </h2>
+            <p style="font-size: var(--text-body-md); line-height: var(--line-body-md); color: var(--color-on-surface-variant);">
+              Standard video platforms are optimized for watch time and advertising. FocusTube is built purely for deep comprehension. Combine active video recall with built-in Pomodoro cycles to protect your mental energy.
+            </p>
+            <div style="display: flex; align-items: center; gap: var(--space-xl); padding-top: var(--space-xs);">
+              <div>
+                <div class="font-mono" style="font-size: var(--text-display-lg); font-weight: 700; color: var(--color-primary); line-height: 1;">100%</div>
+                <div style="font-size: var(--text-label-sm); color: var(--color-outline); margin-top: 4px;">On-Device Vision</div>
+              </div>
+              <div style="width: 1px; height: 40px; background: var(--color-surface-container-highest);"></div>
+              <div>
+                <div class="font-mono" style="font-size: var(--text-display-lg); font-weight: 700; color: var(--color-secondary); line-height: 1;">AI</div>
+                <div style="font-size: var(--text-label-sm); color: var(--color-outline); margin-top: 4px;">Quizzes on Missed Parts</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- PRIVACY ASSURANCE SECTION -->
+      <section style="text-align: center; max-width: 680px; margin: 0 auto var(--space-xl); display: flex; flex-direction: column; align-items: center; gap: var(--space-xs);">
+        <div style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 20px; border-radius: var(--radius-full); background: var(--color-surface-container-high); font-size: var(--text-label-md); color: var(--color-on-surface);">
+          <span class="material-symbols-outlined" style="font-size: 18px; color: var(--color-secondary);">verified</span>
+          <span>Camera frames never leave your device. Only the public video link is sent to generate your quiz.</span>
+        </div>
+        <p style="font-size: var(--text-body-sm); color: var(--color-outline); margin-top: 4px;">
+          All video processing runs locally in your browser. No video frames are ever recorded, stored, or transmitted.
+        </p>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- INTERACTIVE DEMO MODAL -->
+  <div class="modal-backdrop" id="demo-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: var(--space-xs);">
+          <span class="material-symbols-outlined" style="color: var(--color-primary);">play_circle</span>
+          <h3 style="font-size: var(--text-headline-sm); font-weight: 600;">Interactive Studio Walkthrough</h3>
+        </div>
+        <button class="btn-ghost" id="demo-modal-close" style="padding: 4px; border-radius: var(--radius-md);">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <img 
+          src="assets/demo-walkthrough.jpg" 
+          alt="Technical walkthrough demonstration" 
+          style="width: 100%; height: 100%; object-fit: cover;"
+        />
+        <div style="position: absolute; inset: 0; background: rgba(10, 13, 27, 0.45); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-xs);">
+          <button class="btn btn-primary" id="demo-modal-play-btn" style="width: 56px; height: 56px; border-radius: 50%; padding: 0;" title="Launch Interactive Demo">
+            <span class="material-symbols-outlined" style="font-size: 32px;">play_arrow</span>
+          </button>
+          <span style="font-size: var(--text-label-sm); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Launch 1-Min Interactive Demo</span>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <span style="font-size: var(--text-body-sm); color: var(--color-on-surface-variant);">Try a 1-minute study block with distraction testing (Shift+D)</span>
+        <div style="display: flex; align-items: center; gap: var(--space-sm);">
+          <a href="#video-picker" class="btn btn-ghost btn-sm" id="modal-choose-btn">Choose a Lecture</a>
+          <button class="btn btn-primary btn-sm" id="modal-launch-demo-btn" type="button">Start Demo Session</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Global Footer -->
+  <footer class="app-footer">
+    <div class="footer-container">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span style="font-weight: 600; text-transform: uppercase; font-size: var(--text-label-sm); color: var(--color-outline);">FocusTube Studio</span>
+        <span>•</span>
+        <span>Distraction-free educational streaming workspace</span>
+      </div>
+      <div>© FocusTube. Built for distraction-free learning.</div>
+    </div>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="js/storage.js"></script>
+  <script src="js/video-input.js"></script>
+  <script>
+    // =========================================================================
+    // 1. Dynamic Video Picker Loader
+    // =========================================================================
+    const fallbackVideos = [
+      {
+        "id": "mit-1806-l01",
+        "title": "MIT 18.06 Linear Algebra - Lecture 1: The Geometry of Linear Equations",
+        "channel": "MIT OpenCourseWare",
+        "duration": 2895,
+        "durationFormatted": "48:15",
+        "thumbnail": "assets/mit-1806-thumb.jpg",
+        "chapters": [
+          { "time": 0, "title": "Introduction & Course Overview" },
+          { "time": 312, "title": "Column Picture Geometry" },
+          { "time": 1100, "title": "Row Picture vs. Column Picture" },
+          { "time": 1870, "title": "Matrix Form Ax = b" }
+        ]
+      },
+      {
+        "id": "3b1b-vectors",
+        "title": "Essence of Linear Algebra - Chapter 1: Vectors, what even are they?",
+        "channel": "3Blue1Brown",
+        "duration": 593,
+        "durationFormatted": "09:53",
+        "thumbnail": "assets/3b1b-vectors-thumb.jpg",
+        "chapters": [
+          { "time": 0, "title": "Introduction" },
+          { "time": 114, "title": "Physics vs. CS vs. Math Perspectives" },
+          { "time": 320, "title": "Vector Coordinates in 2D" },
+          { "time": 490, "title": "Vector Addition & Scalar Multiplication" }
+        ]
+      }
+    ];
+
+    function renderVideoPicker(videos) {
+      const grid = document.getElementById('video-picker-grid');
+      if (!grid) return;
+      grid.innerHTML = '';
+
+      videos.forEach(video => {
+        const card = document.createElement('div');
+        card.className = 'video-card';
+        card.setAttribute('role', 'button');
+        card.setAttribute('tabindex', '0');
+        card.setAttribute('aria-label', `Start session: ${video.title}`);
+
+        const chaptersCount = video.chapters ? video.chapters.length : 4;
+
+        card.innerHTML = `
+          <div class="video-thumbnail-box">
+            <img src="${video.thumbnail}" alt="${video.title}" loading="lazy" />
+            <div class="video-duration-tag font-mono">${video.durationFormatted}</div>
+            <div class="video-clean-tag">
+              <span class="material-symbols-outlined" style="font-size: 13px;">shield</span>
+              <span>Clean Stream</span>
+            </div>
+            <div class="video-play-overlay">
+              <div class="video-play-btn-circle">
+                <span class="material-symbols-outlined" style="font-size: 28px;">play_arrow</span>
+              </div>
+            </div>
+          </div>
+          <div class="video-card-body">
+            <div class="video-channel-tag">${video.channel}</div>
+            <h3 class="video-card-title">${video.title}</h3>
+            <div class="video-chapters-preview">
+              <span class="material-symbols-outlined" style="font-size: 16px;">menu_book</span>
+              <span>${chaptersCount} Structured Chapters</span>
+              <span style="margin: 0 4px;">•</span>
+              <span>Autonomic Bookmarks</span>
+            </div>
+          </div>
+          <div class="video-card-footer">
+            <span style="font-size: var(--text-label-sm); color: var(--color-outline);">Gaze Telemetry Armed</span>
+            <span class="video-launch-cta">
+              <span>Launch Studio</span>
+              <span class="material-symbols-outlined" style="font-size: 16px;">arrow_forward</span>
+            </span>
+          </div>
+        `;
+
+        // Click event: Save chosen videoId to localStorage and redirect to study.html
+        function selectAndLaunch() {
+          if (window.FocusTubeStorage) {
+            window.FocusTubeStorage.setCurrentVideo({
+              videoId: video.id,
+              title: video.title,
+              author: video.channel,
+              thumbnail: video.thumbnail,
+              custom: false
+            });
+            window.FocusTubeStorage.saveQueue([{
+              position: 1,
+              videoId: video.id,
+              title: video.title,
+              channel: video.channel,
+              thumbnail: video.thumbnail
+            }]);
+            window.FocusTubeStorage.prefetchQuiz(video.id);
+          } else {
+            localStorage.setItem('focustube_selected_video_id', video.id);
+          }
+          window.location.href = 'study.html';
+        }
+
+        card.addEventListener('click', selectAndLaunch);
+        card.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            selectAndLaunch();
+          }
+        });
+
+        grid.appendChild(card);
+      });
+    }
+
+    // Load videos with fetch, fallback gracefully to bundled array
+    fetch('data/videos.json')
+      .then(res => {
+        if (!res.ok) throw new Error('Network error loading videos.json');
+        return res.json();
+      })
+      .then(data => {
+        renderVideoPicker(data && data.length ? data : fallbackVideos);
+      })
+      .catch(err => {
+        console.info('[FocusTube] Loading fallback demo video list:', err.message);
+        renderVideoPicker(fallbackVideos);
+      });
+
+    // =========================================================================
+    // 2. Focus Orb Visualization (Three.js WebGL Core)
+    // =========================================================================
+    (function initThreeOrb() {
+      const container = document.getElementById('threejs-orb-container');
+      if (!container || typeof THREE === 'undefined') return;
+
+      const width = container.clientWidth || 360;
+      const height = container.clientHeight || 300;
+
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 1000);
+      camera.position.z = 5;
+
+      const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+      renderer.setSize(width, height);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      container.appendChild(renderer.domElement);
+
+      // Lighting
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.85);
+      scene.add(ambientLight);
+
+      const pointLight1 = new THREE.PointLight(0x6366F1, 3, 50);
+      pointLight1.position.set(5, 5, 5);
+      scene.add(pointLight1);
+
+      const pointLight2 = new THREE.PointLight(0x22C55E, 2, 50);
+      pointLight2.position.set(-5, -3, 3);
+      scene.add(pointLight2);
+
+      // Main Group
+      const focusGroup = new THREE.Group();
+      scene.add(focusGroup);
+
+      // Central Wireframe Icosahedron
+      const coreGeo = new THREE.IcosahedronGeometry(1.0, 1);
+      const coreMat = new THREE.MeshPhongMaterial({
+        color: 0x6366F1,
+        emissive: 0x312E81,
+        wireframe: true,
+        wireframeLinewidth: 2,
+        transparent: true,
+        opacity: 0.85
+      });
+      const coreMesh = new THREE.Mesh(coreGeo, coreMat);
+      focusGroup.add(coreMesh);
+
+      // Inner Glowing Core Sphere
+      const innerGeo = new THREE.SphereGeometry(0.5, 32, 32);
+      const innerMat = new THREE.MeshPhongMaterial({
+        color: 0x22C55E,
+        emissive: 0x15803D,
+        shininess: 90,
+        transparent: true,
+        opacity: 0.75
+      });
+      const innerMesh = new THREE.Mesh(innerGeo, innerMat);
+      focusGroup.add(innerMesh);
+
+      // Orbital Concentric Gyroscope Rings
+      function createRing(radius, tube, color, rotX, rotY) {
+        const ringGeo = new THREE.TorusGeometry(radius, tube, 16, 64);
+        const ringMat = new THREE.MeshPhongMaterial({
+          color: color,
+          emissive: color,
+          emissiveIntensity: 0.25,
+          shininess: 80,
+          transparent: true,
+          opacity: 0.65
+        });
+        const ring = new THREE.Mesh(ringGeo, ringMat);
+        ring.rotation.x = rotX;
+        ring.rotation.y = rotY;
+        return ring;
+      }
+
+      const ring1 = createRing(1.6, 0.02, 0x6366F1, Math.PI / 3, 0);
+      const ring2 = createRing(1.9, 0.015, 0x8083FF, 0, Math.PI / 4);
+      const ring3 = createRing(2.2, 0.01, 0x22C55E, Math.PI / 2.2, Math.PI / 6);
+      focusGroup.add(ring1);
+      focusGroup.add(ring2);
+      focusGroup.add(ring3);
+
+      // Floating particles
+      const particleCount = 40;
+      const particleGeo = new THREE.BufferGeometry();
+      const positions = new Float32Array(particleCount * 3);
+      for (let i = 0; i < particleCount * 3; i += 3) {
+        const r = 1.3 + Math.random() * 1.5;
+        const theta = Math.random() * Math.PI * 2;
+        const phi = (Math.random() - 0.5) * Math.PI;
+        positions[i] = r * Math.cos(theta) * Math.cos(phi);
+        positions[i+1] = r * Math.sin(phi);
+        positions[i+2] = r * Math.sin(theta) * Math.cos(phi);
+      }
+      particleGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      const particleMat = new THREE.PointsMaterial({
+        color: 0xC0C1FF,
+        size: 0.045,
+        transparent: true,
+        opacity: 0.9
+      });
+      const particles = new THREE.Points(particleGeo, particleMat);
+      focusGroup.add(particles);
+
+      // Mouse Gaze Interaction
+      let mouseX = 0;
+      let mouseY = 0;
+      let targetX = 0;
+      let targetY = 0;
+
+      window.addEventListener('mousemove', (e) => {
+        mouseX = (e.clientX / window.innerWidth - 0.5) * 2;
+        mouseY = (e.clientY / window.innerHeight - 0.5) * 2;
+      });
+
+      // Resize
+      window.addEventListener('resize', () => {
+        const w = container.clientWidth;
+        const h = container.clientHeight;
+        if (!w || !h) return;
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+        renderer.setSize(w, h);
+      });
+
+      // Render Loop
+      const clock = new THREE.Clock();
+      function animate() {
+        requestAnimationFrame(animate);
+        const elapsed = clock.getElapsedTime();
+
+        targetX += (mouseX - targetX) * 0.05;
+        targetY += (mouseY - targetY) * 0.05;
+
+        focusGroup.rotation.y = elapsed * 0.3 + targetX * 0.5;
+        focusGroup.rotation.x = Math.sin(elapsed * 0.2) * 0.2 + targetY * 0.5;
+
+        ring1.rotation.z = elapsed * 0.4;
+        ring2.rotation.x = elapsed * -0.3;
+        ring3.rotation.y = elapsed * 0.2;
+
+        coreMesh.rotation.x = elapsed * 0.5;
+        coreMesh.rotation.y = elapsed * 0.4;
+
+        const pulse = 1.0 + Math.sin(elapsed * 2.0) * 0.08;
+        innerMesh.scale.set(pulse, pulse, pulse);
+
+        renderer.render(scene, camera);
+      }
+      animate();
+    })();
+
+    // =========================================================================
+    // 3. Demo Modal Controls
+    // =========================================================================
+    (function initModal() {
+      const openBtn = document.getElementById('demo-modal-trigger');
+      const closeBtn = document.getElementById('demo-modal-close');
+      const chooseBtn = document.getElementById('modal-choose-btn');
+      const playBtn = document.getElementById('demo-modal-play-btn');
+      const demoBtn = document.getElementById('modal-launch-demo-btn');
+      const modal = document.getElementById('demo-modal');
+
+      function openModal() {
+        if (!modal) return;
+        modal.classList.add('open');
+      }
+
+      function closeModal() {
+        if (!modal) return;
+        modal.classList.remove('open');
+      }
+
+      function startDemo() {
+        if (typeof window !== 'undefined' && window.FocusTubeStorage) {
+          window.FocusTubeStorage.setSelectedVideoId('mit-1806-l01');
+        }
+        window.location.href = 'study.html?demo=1';
+      }
+
+      if (openBtn) openBtn.addEventListener('click', openModal);
+      if (closeBtn) closeBtn.addEventListener('click', closeModal);
+      if (chooseBtn) chooseBtn.addEventListener('click', closeModal);
+      if (playBtn) playBtn.addEventListener('click', startDemo);
+      if (demoBtn) demoBtn.addEventListener('click', startDemo);
+
+      if (modal) {
+        modal.addEventListener('click', (e) => {
+          if (e.target === modal) closeModal();
+        });
+      }
+    })();
+  </script>
+</body>
+</html>

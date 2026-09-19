@@ -1,0 +1,72 @@
+[
+  {
+    "start": 0,
+    "end": 45,
+    "text": "Welcome to Linear Algebra 18.06. This is the first lecture. Today we are going to study the fundamental problem of linear algebra, which is solving systems of linear equations."
+  },
+  {
+    "start": 45,
+    "end": 120,
+    "text": "Let us start with two equations and two unknowns: 2x - y = 0 and -x + 2y = 3. There are two ways to see this problem. One is the row picture, which is what most of you learned first, and the other is the column picture."
+  },
+  {
+    "start": 120,
+    "end": 210,
+    "text": "In the row picture, each equation represents a straight line in the xy plane. The first line 2x - y = 0 passes through the origin. The second line -x + 2y = 3 intersects it at the point x = 1, y = 2."
+  },
+  {
+    "start": 210,
+    "end": 300,
+    "text": "The intersection of these two lines is the unique point (1, 2). That point satisfies both equations simultaneously. That is the row picture. But linear algebra really becomes powerful when we look at the column picture."
+  },
+  {
+    "start": 300,
+    "end": 390,
+    "text": "In the column picture, we write the system as x times the column vector (2, -1) plus y times the column vector (-1, 2) equals the right-hand side vector (0, 3). This is a linear combination of columns."
+  },
+  {
+    "start": 390,
+    "end": 480,
+    "text": "We are taking 1 of the first column vector plus 2 of the second column vector. Notice that adding these vectors together in the plane gives us exactly the vector (0, 3)."
+  },
+  {
+    "start": 480,
+    "end": 570,
+    "text": "Now what happens when we go to three equations and three unknowns? In the row picture, each linear equation represents a plane in three-dimensional space. Two planes meet in a line, and the third plane intersects that line in a single point."
+  },
+  {
+    "start": 570,
+    "end": 660,
+    "text": "The geometry of three planes meeting in 3D can be difficult to visualize, especially when the planes are parallel or intersect in a line. That is why the column picture is much clearer even in high dimensions."
+  },
+  {
+    "start": 660,
+    "end": 780,
+    "text": "In the column picture for 3 by 3, we have three column vectors in 3D space: u, v, and w. We are asking: can we find numbers x, y, z such that x*u + y*v + z*w equals the target vector b? This is finding a linear combination of the three columns."
+  },
+  {
+    "start": 780,
+    "end": 900,
+    "text": "Do the columns span the whole three-dimensional space? If all three column vectors lie in the same flat plane, then their linear combinations can only produce vectors in that plane. In that case, the matrix is singular and not invertible."
+  },
+  {
+    "start": 900,
+    "end": 1050,
+    "text": "When the column vectors are linearly independent and do not lie in the same plane, their linear combinations fill all of three-dimensional space. Then for any vector b on the right side, there is always a unique solution."
+  },
+  {
+    "start": 1050,
+    "end": 1200,
+    "text": "Now let us introduce matrix notation: Ax = b. The matrix A contains our coefficients. The vector x contains our unknown variables, and b is the given right-hand side vector."
+  },
+  {
+    "start": 1200,
+    "end": 1380,
+    "text": "How do you multiply a matrix A by a vector x? One way is dot product of rows with x. But the better way—the linear algebra way—is thinking of Ax as a linear combination of the column vectors of A, with weights given by the components of x."
+  },
+  {
+    "start": 1380,
+    "end": 1560,
+    "text": "Remember this fundamental principle: Ax is always a linear combination of the columns of A. That view connects matrix multiplication directly to vector spaces and span."
+  }
+]

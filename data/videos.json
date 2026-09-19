@@ -1,0 +1,58 @@
+[
+  {
+    "id": "mit-1806-l01",
+    "title": "MIT 18.06 Linear Algebra - Lecture 1: The Geometry of Linear Equations",
+    "channel": "MIT OpenCourseWare",
+    "duration": 2895,
+    "durationFormatted": "48:15",
+    "youtubeId": "J7DzL2_Na80",
+    "thumbnail": "assets/mit-1806-thumb.jpg",
+    "hasTranscript": true,
+    "chapters": [
+      {
+        "time": 0,
+        "title": "Introduction & Course Overview"
+      },
+      {
+        "time": 312,
+        "title": "Column Picture Geometry"
+      },
+      {
+        "time": 1100,
+        "title": "Row Picture vs. Column Picture"
+      },
+      {
+        "time": 1870,
+        "title": "Matrix Form Ax = b"
+      }
+    ]
+  },
+  {
+    "id": "3b1b-vectors",
+    "title": "Essence of Linear Algebra - Chapter 1: Vectors, what even are they?",
+    "channel": "3Blue1Brown",
+    "duration": 593,
+    "durationFormatted": "09:53",
+    "youtubeId": "fNk_zzaMoSs",
+    "thumbnail": "assets/3b1b-vectors-thumb.jpg",
+    "hasTranscript": true,
+    "chapters": [
+      {
+        "time": 0,
+        "title": "Introduction"
+      },
+      {
+        "time": 114,
+        "title": "Physics vs. CS vs. Math Perspectives"
+      },
+      {
+        "time": 320,
+        "title": "Vector Coordinates in 2D"
+      },
+      {
+        "time": 490,
+        "title": "Vector Addition & Scalar Multiplication"
+      }
+    ]
+  }
+]

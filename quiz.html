@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FocusTube - Active Recall Quiz</title>
+  <meta name="description" content="Distraction-targeted active recall quiz testing concepts covered while your attention wandered.">
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0..1,0" rel="stylesheet">
+
+  <!-- Core Stylesheet -->
+  <link rel="stylesheet" href="css/styles.css">
+
+  <style>
+    /* Quiz Page Specific Overrides */
+    .ambient-glow {
+      position: fixed;
+      width: 500px;
+      height: 500px;
+      border-radius: 50%;
+      pointer-events: none;
+      filter: blur(120px);
+      z-index: 0;
+      opacity: 0.18;
+    }
+    .glow-indigo {
+      background: radial-gradient(circle, var(--color-primary-container) 0%, transparent 70%);
+    }
+    .glow-emerald {
+      background: radial-gradient(circle, var(--color-secondary) 0%, transparent 70%);
+    }
+
+    .lecture-preview-strip {
+      width: 100%;
+      padding: var(--space-md) var(--space-lg);
+      border-radius: var(--radius-2xl);
+      background: var(--color-surface-container-lowest);
+      border: 1px solid rgba(70, 69, 84, 0.3);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-md);
+    }
+    @media (min-width: 768px) {
+      .lecture-preview-strip {
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Ambient Glows -->
+  <div class="ambient-glow glow-indigo" style="top: 10%; right: 15%;"></div>
+  <div class="ambient-glow glow-emerald" style="top: 50%; left: 10%;"></div>
+
+  <!-- Global Header -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="header-left">
+        <a href="index.html" class="brand-logo" aria-label="FocusTube Home">
+          <span class="brand-icon">🎯</span>
+          <span class="brand-name">FocusTube</span>
+        </a>
+        <div class="session-badge">
+          <span class="session-badge-dot"></span>
+          <span class="session-badge-text">Focus &amp; Study Engine</span>
+        </div>
+      </div>
+
+      <nav class="nav-links">
+        <a href="index.html" class="nav-link">How it works</a>
+        <a href="study.html" class="nav-link">Study Room</a>
+        <a href="summary.html" class="nav-link">Analytics</a>
+        <a href="quiz.html" class="nav-link active">Recall</a>
+      </nav>
+
+      <div class="header-right">
+        <a href="study.html" class="btn btn-primary btn-sm">
+          <span>Start Studying</span>
+        </a>
+        <div class="user-avatar" title="Active Scholar">
+          <span class="material-symbols-outlined" style="font-size: 18px;">person</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Canvas -->
+  <main style="padding-top: calc(var(--header-height) + var(--space-lg)); padding-bottom: var(--space-xl); min-height: 100vh; position: relative; z-index: 1;">
+    <div class="quiz-container">
+      
+      <!-- Top Meta Track: Badge -->
+      <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-sm);">
+        <div style="display: flex; align-items: center; gap: var(--space-sm);">
+          <span style="display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: rgba(192, 193, 255, 0.12); color: var(--color-primary);">
+            <span class="material-symbols-outlined" style="font-size: 16px;">psychology</span>
+          </span>
+          <span style="font-size: var(--text-label-sm); color: var(--color-primary); letter-spacing: 0.05em; text-transform: uppercase; font-weight: 600;">
+            Active Retrieval Practice
+          </span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 6px; font-size: var(--text-label-sm); color: var(--color-on-surface-variant);">
+          <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--color-secondary);"></span>
+          <span>Calm Mode • No Penalty</span>
+        </div>
+      </div>
+
+      <!-- Quiz Header Zone -->
+      <div style="display: flex; flex-direction: column; gap: var(--space-sm);">
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <div style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--space-sm);">
+            <div>
+              <h1 style="font-size: var(--text-headline-lg); font-weight: 700; color: var(--color-on-surface); letter-spacing: -0.01em;">
+                Quiz on what you missed
+              </h1>
+              <p style="font-size: var(--text-body-md); color: var(--color-on-surface-variant); margin-top: 2px;">
+                Consolidation check generated for concepts taught while your attention drifted.
+              </p>
+            </div>
+            <div style="text-align: right;">
+              <span style="font-size: var(--text-label-sm); color: var(--color-on-surface-variant); text-transform: uppercase; letter-spacing: 0.04em;">Progress</span>
+              <div id="quiz-progress-text" style="font-size: var(--text-headline-sm); font-weight: 600; color: var(--color-primary);">
+                Question <span id="quiz-current-num">1</span> of <span id="quiz-total-num">3</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dynamic Segmented Progress Bar -->
+        <div class="quiz-progress-track" id="quiz-progress-track" style="grid-template-columns: repeat(3, 1fr); margin-top: 4px;">
+          <div class="quiz-progress-segment active"></div>
+          <div class="quiz-progress-segment"></div>
+          <div class="quiz-progress-segment"></div>
+        </div>
+      </div>
+
+      <!-- Central Question Card -->
+      <div class="quiz-card" id="quiz-question-card">
+        <!-- Card Header: Metadata Pills & Concept Category -->
+        <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-sm); border-bottom: 1px solid rgba(70, 69, 84, 0.2); padding-bottom: var(--space-sm);">
+          <div style="display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs);">
+            <!-- Time Capsule Pill -->
+            <div class="quiz-meta-pill time" id="quiz-time-pill">
+              <span class="material-symbols-outlined" style="font-size: 16px;">replay</span>
+              <span id="quiz-origin-time-text">From 4:12 • Moment You Zoned Out</span>
+            </div>
+            <!-- Category Pill -->
+            <div class="quiz-meta-pill concept" id="quiz-concept-pill">
+              <span class="material-symbols-outlined" style="font-size: 15px; color: var(--color-tertiary);">category</span>
+              <span id="quiz-concept-text">Column Picture Geometry</span>
+            </div>
+          </div>
+          <span style="font-size: var(--text-label-sm); color: var(--color-outline); text-transform: uppercase; letter-spacing: 0.04em;">
+            Session Memory Check
+          </span>
+        </div>
+
+        <!-- Question Stem -->
+        <div>
+          <h2 id="quiz-question-stem" style="font-size: var(--text-headline-md); font-weight: 600; color: var(--color-on-surface); line-height: 1.45;">
+            Loading question...
+          </h2>
+        </div>
+
+        <!-- Answer Options Group -->
+        <div id="quiz-options-group" style="display: flex; flex-direction: column; gap: var(--space-sm);" role="radiogroup" aria-label="Multiple Choice Options">
+          <!-- Populated dynamically by js/quiz.js -->
+        </div>
+
+        <!-- Instant Feedback & Pedagogical Explanation Box (Shown on Answer) -->
+        <div id="quiz-feedback-box" class="quiz-feedback-box" style="display: none;">
+          <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-md); flex-wrap: wrap;">
+            <div style="display: flex; align-items: flex-start; gap: var(--space-sm); flex: 1;">
+              <span id="quiz-feedback-icon" style="font-size: 22px; line-height: 1; flex-shrink: 0;">🎯</span>
+              <div>
+                <div id="quiz-feedback-title" style="font-weight: 600; font-size: var(--text-body-md); margin-bottom: 2px;">
+                  Spot on!
+                </div>
+                <p id="quiz-explanation-text" style="font-size: var(--text-body-sm); line-height: 1.5; color: var(--color-on-surface-variant); margin: 0;">
+                  Explanation goes here...
+                </p>
+              </div>
+            </div>
+            <!-- Rewatch Context Trigger Button -->
+            <button class="quiz-rewatch-cta" id="quiz-rewatch-btn" type="button" title="Watch the 45-second lecture segment explaining this concept">
+              <span class="material-symbols-outlined" style="font-size: 18px;">play_circle</span>
+              <span id="quiz-rewatch-btn-label">▶ Rewatch this moment</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Mini Learning Support Footer -->
+        <div style="display: flex; align-items: center; justify-content: space-between; border-top: 1px solid rgba(70, 69, 84, 0.2); padding-top: var(--space-sm); color: var(--color-on-surface-variant); font-size: var(--text-body-sm);">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span class="material-symbols-outlined" style="font-size: 18px; color: var(--color-tertiary);">bolt</span>
+            <span>Active recall: <strong style="color: var(--color-tertiary); font-weight: 500;">Reinforces key concepts immediately</strong></span>
+          </div>
+          <span style="font-size: var(--text-label-sm); color: var(--color-outline);">Instant feedback • No penalty</span>
+        </div>
+      </div>
+
+      <!-- Quiz Completion Card (Initially Hidden) -->
+      <div class="quiz-card" id="quiz-completion-card" style="display: none; text-align: center; align-items: center; padding: var(--space-xl);">
+        <div style="width: 64px; height: 64px; border-radius: 50%; background: rgba(74, 225, 118, 0.15); color: var(--color-secondary); display: flex; align-items: center; justify-content: center; margin-bottom: var(--space-xs);">
+          <span class="material-symbols-outlined" style="font-size: 36px;">workspace_premium</span>
+        </div>
+        <h2 style="font-size: var(--text-headline-lg); font-weight: 700; color: var(--color-on-surface);">
+          Review Complete! 🎉
+        </h2>
+        <p style="color: var(--color-on-surface-variant); font-size: var(--text-body-md); max-width: 520px; margin: 4px auto 0;">
+          Testing concepts right after a study session strengthens long-term understanding. You reviewed what was missed.
+        </p>
+
+        <!-- Score readout -->
+        <div style="margin: var(--space-md) 0; padding: var(--space-md) var(--space-xl); background: var(--color-surface-container); border-radius: var(--radius-xl); border: 1px solid rgba(70, 69, 84, 0.35); display: inline-flex; align-items: center; gap: var(--space-lg);">
+          <div style="text-align: left;">
+            <div style="font-size: var(--text-label-sm); color: var(--color-outline); text-transform: uppercase;">Final Score</div>
+            <div id="quiz-completion-score" style="font-size: 28px; font-weight: 700; color: var(--color-secondary);" class="font-mono">3 / 3 (100%)</div>
+          </div>
+          <div style="width: 1px; height: 36px; background: rgba(70, 69, 84, 0.4);"></div>
+          <div style="text-align: left;">
+            <div style="font-size: var(--text-label-sm); color: var(--color-outline); text-transform: uppercase;">Status</div>
+            <div style="font-size: 16px; font-weight: 600; color: var(--color-on-surface);">Concepts Retained</div>
+          </div>
+        </div>
+
+        <div style="display: flex; flex-wrap: wrap; gap: var(--space-sm); justify-content: center; margin-top: var(--space-sm);">
+          <a href="summary.html" class="btn btn-secondary">
+            <span class="material-symbols-outlined" style="font-size: 18px;">analytics</span>
+            <span>Back to Session Summary</span>
+          </a>
+          <a href="study.html" class="btn btn-primary" id="quiz-start-next-btn">
+            <span class="material-symbols-outlined" style="font-size: 18px;">play_arrow</span>
+            <span>Start Next Study Block</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- Bottom Navigation Controls -->
+      <div id="quiz-nav-controls" style="display: flex; flex-direction: column; gap: var(--space-md);">
+        <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-md);">
+          <!-- Previous Question Button -->
+          <button class="btn btn-ghost btn-sm" id="quiz-prev-btn" type="button" disabled>
+            <span class="material-symbols-outlined" style="font-size: 18px;">arrow_back</span>
+            <span>Previous</span>
+          </button>
+
+          <!-- Skip / Next CTAs -->
+          <div style="display: flex; align-items: center; gap: var(--space-md); flex-wrap: wrap;">
+            <a href="summary.html" style="font-size: var(--text-label-md); color: var(--color-on-surface-variant); text-decoration: underline; text-underline-offset: 4px;">
+              Skip quiz &amp; review summary
+            </a>
+            <button class="btn btn-primary btn-sm" id="quiz-next-btn" type="button" style="box-shadow: 0 0 20px rgba(192, 193, 255, 0.25);">
+              <span id="quiz-next-btn-text">Next question</span>
+              <span class="material-symbols-outlined" style="font-size: 18px;">arrow_forward</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Source Lecture Preview Strip (Rich Media Anchor) -->
+      <div class="lecture-preview-strip" id="quiz-lecture-strip">
+        <div style="display: flex; align-items: center; gap: var(--space-md); min-width: 0;">
+          <div style="position: relative; width: 96px; height: 60px; border-radius: var(--radius-md); overflow: hidden; background: var(--color-surface-container-high); flex-shrink: 0;">
+            <img id="quiz-lecture-thumb" src="" alt="Lecture Thumbnail" style="width: 100%; height: 100%; object-fit: cover;">
+            <div id="quiz-lecture-timestamp-badge" style="position: absolute; bottom: 3px; right: 3px; padding: 1px 4px; border-radius: 4px; background: rgba(10, 13, 27, 0.85); font-size: 10px; font-family: var(--font-family-mono); color: var(--color-on-surface);">
+              4:12
+            </div>
+          </div>
+          <div style="display: flex; flex-direction: column; min-width: 0;">
+            <span style="font-size: var(--text-label-sm); color: var(--color-outline); text-transform: uppercase; letter-spacing: 0.04em;">Source Lecture</span>
+            <span id="quiz-lecture-title" style="font-size: var(--text-headline-sm); font-weight: 600; color: var(--color-on-surface); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+              MIT 18.06: The Geometry of Linear Equations
+            </span>
+            <span id="quiz-lecture-channel" style="font-size: var(--text-body-sm); color: var(--color-on-surface-variant); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+              MIT OpenCourseWare
+            </span>
+          </div>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: var(--space-sm); flex-shrink: 0;">
+          <div style="display: flex; align-items: center; gap: 4px; color: var(--color-secondary); font-size: var(--text-label-sm);">
+            <span class="material-symbols-outlined" style="font-size: 16px;">verified</span>
+            <span>Timestamp Verified</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- IN-PAGE EMBEDDED REPLAY MODAL -->
+  <div class="modal-backdrop" id="quiz-replay-modal" style="display: none;">
+    <div class="modal-card" style="max-width: 800px; width: 92%;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: var(--space-xs);">
+          <span class="material-symbols-outlined" style="color: var(--color-primary); font-size: 24px;">replay</span>
+          <div>
+            <h3 id="quiz-replay-modal-title" style="font-size: var(--text-headline-sm); font-weight: 600;">Rewatch Concept Moment</h3>
+            <p style="font-size: var(--text-body-sm); color: var(--color-on-surface-variant); margin-top: 1px;">
+              Replaying segment to reinforce what was missed
+            </p>
+          </div>
+        </div>
+        <button class="btn-ghost" id="quiz-replay-modal-close" style="padding: 4px; border-radius: var(--radius-md);" title="Close Replay">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+      <div class="modal-body" style="padding: 0; aspect-ratio: 16 / 9; background: #000; position: relative; overflow: hidden; border-radius: var(--radius-md);">
+        <div id="quiz-replay-player" style="position: absolute; inset: 0; width: 100%; height: 100%;"></div>
+      </div>
+      <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
+        <span style="font-size: var(--text-body-sm); color: var(--color-on-surface-variant);">
+          Ad-free, recommendation-free study stream.
+        </span>
+        <button class="btn btn-secondary btn-sm" id="quiz-replay-modal-done-btn" type="button">Close Replay</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Global Footer -->
+  <footer class="app-footer">
+    <div class="footer-container">
+      <div>FocusTube Active Recall Engine</div>
+      <div>Camera frames never leave your device. Only the public video link is sent to generate your quiz.</div>
+    </div>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="js/storage.js"></script>
+  <script src="js/quiz.js"></script>
+</body>
+</html>

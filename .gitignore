@@ -1,0 +1,33 @@
+# FocusTube - Git Ignore
+
+# Environment Variables & Secrets (CRITICAL: Never commit secrets)
+.env
+.env.local
+.env*.local
+*.env
+config.js
+*.key
+*.pem
+
+# Vercel Serverless Cache
+.vercel
+.vercel/
+
+# Node Dependencies
+node_modules
+node_modules/
+package-lock.json
+
+# Tunnel binaries
+cloudflared.exe
+*.exe
+
+# Logs & Diagnostics
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS Artifacts
+.DS_Store
+Thumbs.db

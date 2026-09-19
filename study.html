@@ -581,6 +581,33 @@
                   <span class="font-mono" style="font-size: 10px; color: var(--color-secondary);">ON-DEVICE</span>
                 </div>
               </div>
+
+              <!-- Calibration Step Overlay -->
+              <div class="camera-calibration-overlay" id="camera-calibration-overlay" style="display: none;">
+                <span class="material-symbols-outlined" style="font-size: 28px; color: var(--color-primary); animation: pulse 1.5s infinite;">center_focus_strong</span>
+                <span id="camera-calibration-text" style="font-size: 11px; font-weight: 600; text-align: center; color: var(--color-on-surface);">Look at the screen for 3 seconds</span>
+                <div class="calibration-progress-bar">
+                  <div id="camera-calibration-progress" class="calibration-progress-fill" style="width: 0%;"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Secondary Controls: Taking Notes Toggle & Recalibrate Button -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: var(--space-xs); padding-top: var(--space-xs); border-top: 1px solid rgba(70, 69, 84, 0.2);">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <label class="switch-container" title="Taking notes mode (disables looking-down distraction alerts)">
+                  <input type="checkbox" id="taking-notes-toggle" class="switch-input">
+                  <span class="switch-slider"></span>
+                </label>
+                <div style="display: flex; align-items: center; gap: 4px;">
+                  <span class="material-symbols-outlined" style="font-size: 16px; color: var(--color-outline);">edit_note</span>
+                  <span style="font-size: var(--text-label-sm); color: var(--color-on-surface-variant);">Taking notes</span>
+                </div>
+              </div>
+              <button id="camera-recalibrate-btn" class="btn-ghost" style="padding: 2px 8px; font-size: var(--text-label-sm); display: none; align-items: center; gap: 4px;" type="button" title="Recalibrate camera baseline">
+                <span class="material-symbols-outlined" style="font-size: 14px;">restart_alt</span>
+                <span>Recalibrate</span>
+              </button>
             </div>
 
             <!-- Small Hidden Video Element for Detection Processing -->

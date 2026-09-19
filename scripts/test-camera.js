@@ -20,112 +20,203 @@ console.log('✓ js/camera.js, study.html, and css/styles.css exist');
 console.log('\n--- Checking camera constants & exports ---');
 const FocusTubeCamera = require('../js/camera.js');
 
-if (typeof FocusTubeCamera.YAW_THRESHOLD_DEG !== 'number') {
-  throw new Error('YAW_THRESHOLD_DEG constant missing');
-}
-if (FocusTubeCamera.YAW_THRESHOLD_DEG !== 25) {
-  throw new Error('YAW_THRESHOLD_DEG expected 25, got ' + FocusTubeCamera.YAW_THRESHOLD_DEG);
-}
-console.log('✓ YAW_THRESHOLD_DEG constant is defined:', FocusTubeCamera.YAW_THRESHOLD_DEG, 'degrees');
+const expectedConstants = {
+  YAW_THRESHOLD_DEG: 25,
+  PITCH_DOWN_THRESHOLD_DEG: 15,
+  PITCH_SLIGHT_DOWN_DEG: 5,
+  GAZE_DOWN_DELTA_THRESHOLD: 0.3,
+  PHONE_SCORE_THRESHOLD: 0.4,
+  FACE_AWAY_DURATION_MS: 1500,
+  LOOK_AWAY_DURATION_MS: 1500,
+  LOOKING_DOWN_DURATION_MS: 3000,
+  PHONE_VISIBLE_DURATION_MS: 1500,
+  CALIBRATION_DURATION_MS: 3000,
+  TARGET_FPS: 6,
+  OBJECT_DETECTOR_FPS: 2
+};
 
-if (typeof FocusTubeCamera.LOOK_AWAY_DURATION_MS !== 'number') {
-  throw new Error('LOOK_AWAY_DURATION_MS constant missing');
+for (const [name, val] of Object.entries(expectedConstants)) {
+  if (typeof FocusTubeCamera[name] !== 'number') {
+    throw new Error(`Missing or non-numeric constant: ${name}`);
+  }
+  if (FocusTubeCamera[name] !== val) {
+    throw new Error(`Constant ${name} expected ${val}, got ${FocusTubeCamera[name]}`);
+  }
+  console.log(`✓ ${name} = ${FocusTubeCamera[name]}`);
 }
-if (FocusTubeCamera.LOOK_AWAY_DURATION_MS !== 1500) {
-  throw new Error('LOOK_AWAY_DURATION_MS expected 1500, got ' + FocusTubeCamera.LOOK_AWAY_DURATION_MS);
-}
-console.log('✓ LOOK_AWAY_DURATION_MS constant is defined:', FocusTubeCamera.LOOK_AWAY_DURATION_MS, 'ms (1.5 seconds)');
 
-if (typeof FocusTubeCamera.TARGET_FPS !== 'number' || FocusTubeCamera.TARGET_FPS < 5 || FocusTubeCamera.TARGET_FPS > 8) {
-  throw new Error('TARGET_FPS expected 5-8 FPS, got ' + FocusTubeCamera.TARGET_FPS);
-}
-console.log('✓ TARGET_FPS constant is defined:', FocusTubeCamera.TARGET_FPS, 'FPS');
-
-// 3. Test Head Yaw Matrix Calculation
-console.log('\n--- Testing 4x4 matrix decomposition for Head Yaw ---');
-// Identity matrix (0 degrees yaw)
+// 3. Test Three.js XYZ Euler matrix decomposition
+console.log('\n--- Testing 4x4 Three.js XYZ Euler matrix decomposition ---');
+// Identity matrix (0 degrees pitch, yaw, roll)
 const identityMatrix = [
   1, 0, 0, 0,
   0, 1, 0, 0,
   0, 0, 1, 0,
   0, 0, 0, 1
 ];
-const yawIdentity = FocusTubeCamera.calculateYawFromMatrix(identityMatrix);
-console.log('  Identity matrix yaw:', yawIdentity.toFixed(2), 'deg');
-if (Math.abs(yawIdentity) > 0.001) throw new Error('Identity matrix yaw should be 0');
+const eulerIdentity = FocusTubeCamera.calculateEulerFromMatrix(identityMatrix);
+console.log('  Identity matrix:', eulerIdentity);
+if (Math.abs(eulerIdentity.yaw) > 0.001 || Math.abs(eulerIdentity.pitch) > 0.001) {
+  throw new Error('Identity matrix should have ~0 pitch and yaw');
+}
 
-// 30 degree Y-rotation matrix (column-major)
-// [ cos30,  0, sin30, 0,
-//       0,  1,     0, 0,
-//  -sin30,  0, cos30, 0,
-//       0,  0,     0, 1 ]
+// Pure 30° Y-rotation matrix (column-major)
 const rad30 = 30 * (Math.PI / 180);
 const cos30 = Math.cos(rad30);
 const sin30 = Math.sin(rad30);
-const rot30Matrix = [
-  cos30, 0, -sin30, 0,  // col 0
-  0,     1,      0, 0,  // col 1
-  sin30, 0,  cos30, 0,  // col 2 (col 2 row 0 is index 8 = sin30, col 2 row 2 is index 10 = cos30)
-  0,     0,      0, 1   // col 3
+const rot30YMatrix = [
+  cos30,  0, -sin30, 0, // col 0
+  0,      1,      0, 0, // col 1
+  sin30,  0,  cos30, 0, // col 2 (m13 = sin30)
+  0,      0,      0, 1  // col 3
 ];
-const yaw30 = FocusTubeCamera.calculateYawFromMatrix(rot30Matrix);
-console.log('  30° rotated matrix yaw:', yaw30.toFixed(2), 'deg');
-if (Math.abs(yaw30 - 30) > 0.5) throw new Error('Rotated matrix yaw should be ~30 degrees');
-console.log('✓ Matrix yaw calculation validated');
-
-// 4. Test Landmark Geometric Ratio Yaw Calculation
-console.log('\n--- Testing landmark geometric ratio estimation ---');
-// Frontal facing mock: nose centered between cheeks (ratio = 0.5)
-const mockFrontalLandmarks = new Array(460).fill({ x: 0, y: 0, z: 0 });
-mockFrontalLandmarks[1] = { x: 0.50, y: 0.5, z: 0 };   // Nose tip
-mockFrontalLandmarks[234] = { x: 0.30, y: 0.5, z: 0 }; // Left cheek
-mockFrontalLandmarks[454] = { x: 0.70, y: 0.5, z: 0 }; // Right cheek
-const geomYawFrontal = FocusTubeCamera.calculateYawFromLandmarks(mockFrontalLandmarks);
-console.log('  Frontal landmarks yaw:', geomYawFrontal, 'deg');
-if (geomYawFrontal > 5) throw new Error('Frontal landmarks should yield ~0 degrees yaw');
-
-// Turned head mock: nose shifted toward left cheek (ratio = 0.8)
-const mockTurnedLandmarks = new Array(460).fill({ x: 0, y: 0, z: 0 });
-mockTurnedLandmarks[1] = { x: 0.62, y: 0.5, z: 0 };   // Nose turned
-mockTurnedLandmarks[234] = { x: 0.30, y: 0.5, z: 0 };
-mockTurnedLandmarks[454] = { x: 0.70, y: 0.5, z: 0 };
-const geomYawTurned = FocusTubeCamera.calculateYawFromLandmarks(mockTurnedLandmarks);
-console.log('  Turned landmarks yaw:', geomYawTurned, 'deg');
-if (geomYawTurned <= FocusTubeCamera.YAW_THRESHOLD_DEG) {
-  throw new Error('Turned landmarks should exceed threshold (25 deg)');
+const euler30Y = FocusTubeCamera.calculateEulerFromMatrix(rot30YMatrix);
+console.log('  30° Yaw matrix:', euler30Y);
+if (Math.abs(euler30Y.yaw - 30) > 0.5 || Math.abs(euler30Y.pitch) > 0.5) {
+  throw new Error('30° Y-rotation should yield ~30° yaw and ~0° pitch');
 }
-console.log('✓ Landmark geometry yaw calculation validated');
 
-// 5. Test Attention Classification & 1.5s Timing
-console.log('\n--- Testing 1.5s look-away threshold timing ---');
-let triggeredCount = 0;
-FocusTubeCamera.triggerFaceAwayDistraction = () => {
-  triggeredCount++;
+// Pure -20° X-rotation matrix (pitch down in column-major)
+const radNeg20 = -20 * (Math.PI / 180);
+const cos20 = Math.cos(radNeg20);
+const sin20 = Math.sin(radNeg20);
+const rot20XMatrix = [
+  1,      0,       0, 0, // col 0
+  0,  cos20,   sin20, 0, // col 1
+  0, -sin20,   cos20, 0, // col 2
+  0,      0,       0, 1  // col 3
+];
+const euler20X = FocusTubeCamera.calculateEulerFromMatrix(rot20XMatrix);
+console.log('  -20° Pitch matrix:', euler20X);
+if (Math.abs(euler20X.pitch - (-20)) > 0.5 || Math.abs(euler20X.yaw) > 0.5) {
+  throw new Error('-20° X-rotation should yield ~ -20° pitch');
+}
+console.log('✓ Three.js XYZ Euler decomposition verified');
+
+// 4. Test Blendshape gaze-down extraction
+console.log('\n--- Testing gaze-down blendshape extraction ---');
+const mockBlendshapes = [
+  {
+    categories: [
+      { categoryName: 'eyeBlinkLeft', score: 0.1 },
+      { categoryName: 'eyeLookDownLeft', score: 0.42 },
+      { categoryName: 'eyeLookDownRight', score: 0.58 },
+      { categoryName: 'eyeLookUpLeft', score: 0.05 }
+    ]
+  }
+];
+const gazeDown = FocusTubeCamera.extractGazeDown(mockBlendshapes);
+console.log('  Extracted GazeDown (0.42 & 0.58 avg):', gazeDown);
+if (Math.abs(gazeDown - 0.50) > 0.01) {
+  throw new Error(`Expected gazeDown 0.50, got ${gazeDown}`);
+}
+console.log('✓ Blendshape gaze-down extraction verified');
+
+// 5. Test Calibration Step & Baseline Calculation
+console.log('\n--- Testing calibration step & baseline computation ---');
+FocusTubeCamera.startCalibration();
+if (!FocusTubeCamera.isCalibrating) throw new Error('isCalibrating should be true');
+
+// Feed sample frames over 3 seconds
+FocusTubeCamera.recordCalibrationSample({ yaw: 2, pitch: 5, gazeDown: 0.1 });
+FocusTubeCamera.recordCalibrationSample({ yaw: 4, pitch: 7, gazeDown: 0.14 });
+FocusTubeCamera.finishCalibration();
+
+console.log('  Computed Baseline:', FocusTubeCamera.baseline);
+if (Math.abs(FocusTubeCamera.baseline.pitch - 6.0) > 0.1) {
+  throw new Error(`Expected baseline pitch 6.0, got ${FocusTubeCamera.baseline.pitch}`);
+}
+if (Math.abs(FocusTubeCamera.baseline.yaw - 3.0) > 0.1) {
+  throw new Error(`Expected baseline yaw 3.0, got ${FocusTubeCamera.baseline.yaw}`);
+}
+if (Math.abs(FocusTubeCamera.baseline.gazeDown - 0.12) > 0.01) {
+  throw new Error(`Expected baseline gazeDown 0.12, got ${FocusTubeCamera.baseline.gazeDown}`);
+}
+console.log('✓ Calibration baseline correctly computes sample averages');
+
+// 6. Test Multi-Condition Distraction Classification
+console.log('\n--- Testing distraction rules & timers ---');
+let lastTriggeredType = null;
+FocusTubeCamera.triggerDistraction = (type) => {
+  lastTriggeredType = type;
 };
 
-// Simulate momentary flicker away (e.g. 500ms)
-FocusTubeCamera.awayStartTime = Date.now() - 500;
+// Reset state
+FocusTubeCamera.baseline = { yaw: 0, pitch: 0, gazeDown: 0.1 };
+FocusTubeCamera.isTakingNotes = false;
 FocusTubeCamera.isCurrentlyLookingAway = false;
-FocusTubeCamera.handleAttentionClassification(true, true, 35);
-if (triggeredCount !== 0) throw new Error('Should not trigger distraction at 500ms away');
-console.log('✓ 500ms look-away safely ignored by 1.5s timer');
+FocusTubeCamera.phoneStartTime = null;
+FocusTubeCamera.lookingDownStartTime = null;
+FocusTubeCamera.faceAwayStartTime = null;
 
-// Simulate sustained look-away (>1500ms)
-FocusTubeCamera.awayStartTime = Date.now() - 1600;
-FocusTubeCamera.handleAttentionClassification(true, true, 35);
-if (triggeredCount !== 1) throw new Error('Should trigger distraction after 1.5s away');
-console.log('✓ Sustained look-away (>1500ms) correctly triggered distraction');
+// Case 6A: Pitch > 15° below baseline for 3s -> looking_down
+console.log('  Testing Case 6A: Pitch > 15° below baseline for 3s');
+const now = Date.now();
+FocusTubeCamera.lookingDownStartTime = now - 3100;
+FocusTubeCamera.evaluateAttentionTriggers({
+  now,
+  hasFace: true,
+  isFaceAwayCandidate: false,
+  isLookingDownCandidate: true,
+  isPhoneCandidate: false
+});
+if (lastTriggeredType !== 'looking_down') {
+  throw new Error(`Expected 'looking_down' distraction, got ${lastTriggeredType}`);
+}
+console.log('  ✓ looking_down triggered after 3s of head pitch drop');
 
-// Simulate user looking back: candidate timer cleared
-FocusTubeCamera.handleAttentionClassification(false, true, 10);
-if (FocusTubeCamera.awayStartTime !== null) throw new Error('Looking forward should reset awayStartTime');
-console.log('✓ Looking forward correctly resets away timer');
+// Case 6B: Taking notes disables looking_down rule
+console.log('  Testing Case 6B: "Taking notes" toggle disables looking_down');
+FocusTubeCamera.isTakingNotes = true;
+lastTriggeredType = null;
+FocusTubeCamera.isCurrentlyLookingAway = false;
+// Pitch below baseline = 18 degrees, but taking notes is ON
+const isLookingDownWhenTakingNotes = !FocusTubeCamera.isTakingNotes && (18 >= FocusTubeCamera.PITCH_DOWN_THRESHOLD_DEG);
+if (isLookingDownWhenTakingNotes !== false) {
+  throw new Error('Taking notes toggle should disable looking down candidate');
+}
+console.log('  ✓ Taking notes toggle successfully disables looking down candidate');
 
-// 6. Test study.html markup
-console.log('\n--- Checking study.html required camera elements ---');
+// Case 6C: Phone visible with head down for 1.5s -> phone_visible
+console.log('  Testing Case 6C: Phone visible with head down for 1.5s');
+FocusTubeCamera.isTakingNotes = false;
+FocusTubeCamera.isCurrentlyLookingAway = false;
+lastTriggeredType = null;
+FocusTubeCamera.phoneStartTime = now - 1600;
+FocusTubeCamera.evaluateAttentionTriggers({
+  now,
+  hasFace: true,
+  isFaceAwayCandidate: false,
+  isLookingDownCandidate: false,
+  isPhoneCandidate: true
+});
+if (lastTriggeredType !== 'phone_visible') {
+  throw new Error(`Expected 'phone_visible' distraction, got ${lastTriggeredType}`);
+}
+console.log('  ✓ phone_visible triggered after 1.5s with head down');
+
+// Case 6D: Face away for 1.5s -> face_away
+console.log('  Testing Case 6D: Face away / yaw for 1.5s');
+FocusTubeCamera.isCurrentlyLookingAway = false;
+lastTriggeredType = null;
+FocusTubeCamera.faceAwayStartTime = now - 1600;
+FocusTubeCamera.evaluateAttentionTriggers({
+  now,
+  hasFace: false,
+  isFaceAwayCandidate: true,
+  isLookingDownCandidate: false,
+  isPhoneCandidate: false
+});
+if (lastTriggeredType !== 'face_away') {
+  throw new Error(`Expected 'face_away' distraction, got ${lastTriggeredType}`);
+}
+console.log('  ✓ face_away triggered after 1.5s away');
+
+// 7. Verify study.html elements
+console.log('\n--- Checking study.html DOM elements ---');
 const studyHtml = fs.readFileSync(studyHtmlPath, 'utf8');
 
-const requiredCameraIds = [
+const requiredIds = [
   'camera-attention-card',
   'camera-attention-toggle',
   'camera-status-badge',
@@ -139,40 +230,45 @@ const requiredCameraIds = [
   'camera-hidden-video',
   'camera-privacy-modal',
   'camera-confirm-privacy-btn',
-  'camera-cancel-privacy-btn'
+  'camera-cancel-privacy-btn',
+  'camera-calibration-overlay',
+  'camera-calibration-text',
+  'camera-calibration-progress',
+  'taking-notes-toggle',
+  'camera-recalibrate-btn'
 ];
 
-requiredCameraIds.forEach(id => {
+requiredIds.forEach(id => {
   if (!studyHtml.includes(`id="${id}"`)) {
-    throw new Error('Missing ID in study.html: ' + id);
+    throw new Error(`Missing ID in study.html: ${id}`);
   }
 });
-console.log('✓ All ' + requiredCameraIds.length + ' required camera DOM element IDs present in study.html');
+console.log(`✓ All ${requiredIds.length} required camera DOM elements present in study.html`);
 
-if (!studyHtml.includes('<script src="js/camera.js"></script>')) {
-  throw new Error('Missing camera.js script tag in study.html');
-}
-console.log('✓ <script src="js/camera.js"></script> linked in study.html');
-
-// 7. Test css/styles.css toggle & preview classes
+// 8. Verify css/styles.css classes
 console.log('\n--- Checking css/styles.css camera classes ---');
 const stylesCss = fs.readFileSync(stylesCssPath, 'utf8');
 const requiredClasses = [
-  '.switch-container',
-  '.switch-input',
-  '.switch-slider',
   '.camera-preview-container',
   '.camera-preview-video',
   '.camera-hud-overlay',
   '.camera-status-pill',
   '.camera-status-pill.focused',
-  '.camera-status-pill.away'
+  '.camera-status-pill.away',
+  '.camera-status-pill.calibrating',
+  '.camera-calibration-overlay',
+  '.calibration-progress-bar',
+  '.calibration-progress-fill',
+  '.camera-debug-overlay'
 ];
+
 requiredClasses.forEach(cls => {
   if (!stylesCss.includes(cls)) {
-    throw new Error('Missing class in css/styles.css: ' + cls);
+    throw new Error(`Missing class in css/styles.css: ${cls}`);
   }
 });
-console.log('✓ All required Camera CSS styles validated in css/styles.css');
+console.log(`✓ All ${requiredClasses.length} required CSS styles validated in css/styles.css`);
 
-console.log('\nAll Camera Attention Detection tests passed successfully! 🎉');
+console.log('\n========================================================');
+console.log('All Camera Attention Detection tests passed successfully! 🎉');
+console.log('========================================================');

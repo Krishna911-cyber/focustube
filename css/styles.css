@@ -1575,6 +1575,61 @@ ul, ol {
   to { opacity: 1; }
 }
 
+.camera-status-pill.calibrating {
+  background: rgba(99, 102, 241, 0.25);
+  color: var(--color-primary);
+  border: 1px solid rgba(99, 102, 241, 0.5);
+  animation: pulseCameraWarning 1s infinite alternate;
+}
+
+/* Calibration Overlay */
+.camera-calibration-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 13, 27, 0.88);
+  backdrop-filter: blur(4px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  z-index: 20;
+}
+
+.calibration-progress-bar {
+  width: 80%;
+  height: 4px;
+  background: rgba(70, 69, 84, 0.4);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.calibration-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-primary), var(--color-primary-container));
+  border-radius: var(--radius-full);
+  transition: width 0.1s linear;
+}
+
+/* Debug Overlay */
+.camera-debug-overlay {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: rgba(10, 13, 27, 0.92);
+  border: 1px solid rgba(99, 102, 241, 0.4);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  font-family: var(--font-family-mono);
+  font-size: 10px;
+  color: var(--color-secondary);
+  line-height: 1.4;
+  z-index: 30;
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
 .camera-unavailable-badge {
   display: inline-flex;
   align-items: center;

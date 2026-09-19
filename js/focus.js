@@ -610,6 +610,10 @@ const FocusTubeFocus = {
     if (this.elements.desc) {
       if (this.pendingLoss && this.pendingLoss.type === 'face_away') {
         this.elements.desc.textContent = `You looked away from the study session. Playback and timer paused automatically so you don't miss content.`;
+      } else if (this.pendingLoss && this.pendingLoss.type === 'looking_down') {
+        this.elements.desc.textContent = `You looked down away from the screen. Playback and timer paused automatically so you don't miss content.`;
+      } else if (this.pendingLoss && this.pendingLoss.type === 'phone_visible') {
+        this.elements.desc.textContent = `Phone detected during deep focus. Playback and timer paused automatically so you don't miss content.`;
       } else {
         this.elements.desc.textContent = `You left the study session. Playback and timer paused automatically so you don't miss content.`;
       }
@@ -634,9 +638,13 @@ const FocusTubeFocus = {
       this.elements.statusText.style.color = 'var(--color-tertiary)';
     }
     if (this.elements.statusDesc) {
-      this.elements.statusDesc.textContent = (this.pendingLoss && this.pendingLoss.type === 'face_away') 
-        ? 'Gaze diverted' 
-        : 'Attention diverted';
+      let descText = 'Attention diverted';
+      if (this.pendingLoss) {
+        if (this.pendingLoss.type === 'face_away') descText = 'Gaze diverted';
+        else if (this.pendingLoss.type === 'looking_down') descText = 'Looking down';
+        else if (this.pendingLoss.type === 'phone_visible') descText = 'Phone detected';
+      }
+      this.elements.statusDesc.textContent = descText;
     }
   },
 
@@ -650,12 +658,21 @@ const FocusTubeFocus = {
     const timeStr = this.formatTime(lastDistraction ? lastDistraction.videoTime : 0);
 
     if (this.elements.subtitle) {
-      const typeLabel = lastDistraction && lastDistraction.type === 'face_away' ? 'Gaze diverted' : 'Distraction';
+      let typeLabel = 'Distraction';
+      if (lastDistraction) {
+        if (lastDistraction.type === 'face_away') typeLabel = 'Gaze diverted';
+        else if (lastDistraction.type === 'looking_down') typeLabel = 'Looked down';
+        else if (lastDistraction.type === 'phone_visible') typeLabel = 'Phone detected';
+      }
       this.elements.subtitle.textContent = `${typeLabel} #${distractionNum} at ${timeStr} (${lastDistraction.durationSec}s away)`;
     }
     if (this.elements.desc) {
       if (lastDistraction && lastDistraction.type === 'face_away') {
         this.elements.desc.textContent = `You looked away from the screen. Ready to re-engage with your study material?`;
+      } else if (lastDistraction && lastDistraction.type === 'looking_down') {
+        this.elements.desc.textContent = `You were looking down. Ready to re-engage with your study material?`;
+      } else if (lastDistraction && lastDistraction.type === 'phone_visible') {
+        this.elements.desc.textContent = `Put your phone aside to protect deep focus. Ready to continue?`;
       } else {
         this.elements.desc.textContent = `Session paused. Ready to re-engage with your study material?`;
       }

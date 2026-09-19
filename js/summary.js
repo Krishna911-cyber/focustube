@@ -381,6 +381,14 @@ ${distractionMarkdown}
         reasonLabel = 'Looked away';
         tagColor = 'var(--color-primary)';
         tagBg = 'rgba(99, 102, 241, 0.15)';
+      } else if (d.type === 'looking_down') {
+        reasonLabel = 'Looked down';
+        tagColor = 'var(--color-tertiary)';
+        tagBg = 'rgba(255, 185, 95, 0.15)';
+      } else if (d.type === 'phone_visible') {
+        reasonLabel = 'Phone detected';
+        tagColor = 'var(--color-error)';
+        tagBg = 'rgba(255, 180, 171, 0.2)';
       } else if (d.type === 'window_blur') {
         reasonLabel = 'Window blur';
         tagColor = 'var(--color-tertiary)';

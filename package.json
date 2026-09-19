@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node server.js 8000",
     "dev": "node server.js 8000",
-    "test": "node scripts/test-api.js && node scripts/test-playlist.js && node scripts/test-quiz-flow.js && node scripts/test-pre-departure.js"
+    "test": "node scripts/test-api.js && node scripts/test-playlist.js && node scripts/test-quiz-flow.js && node scripts/test-pre-departure.js && node scripts/test-camera.js"
   },
   "keywords": [
     "education",

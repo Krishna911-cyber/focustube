@@ -153,6 +153,22 @@ async function runTests() {
     assert.ok(res.body.items[0].thumbnail);
   });
 
+  await testAsync('Handler extracts real live videos for custom playlists when API key absent', async () => {
+    const oldKey = process.env.YOUTUBE_API_KEY;
+    delete process.env.YOUTUBE_API_KEY;
+    const { req, res } = mockReqRes({ query: { playlistId: 'PLKnIA16_RmvbAlyx4_rdtR66B7EHX5k3z' } });
+    await playlistHandler(req, res);
+    if (oldKey) process.env.YOUTUBE_API_KEY = oldKey;
+
+    assert.strictEqual(res.statusCode, 200);
+    assert.ok(Array.isArray(res.body.items));
+    assert.ok(res.body.items.length > 0);
+    // Custom playlist must NOT be substituted by MIT 18.06 Linear Algebra
+    assert.notStrictEqual(res.body.title, 'MIT 18.06 Linear Algebra, Spring 2005 (Selected Lectures)');
+    assert.notStrictEqual(res.body.items[0].videoId, 'J7DzL2_Na80');
+    assert.ok(res.body.items[0].title.toLowerCase().includes('python') || res.body.title.toLowerCase().includes('campusx'));
+  });
+
   // --- Suite 4: Storage Queue & Per-Video Distraction Tracking ---
   console.log('\n💾 4. FocusTubeStorage Queue & Per-Video Distractions');
   test('Storage queue operations work correctly', () => {

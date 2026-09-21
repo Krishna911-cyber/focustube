@@ -124,46 +124,72 @@ module.exports = async function handler(req, res) {
     // Case 2: Playlist Resolution
     // -------------------------------------------------------------
     if (playlistId) {
-      if (!apiKey) {
-        res.statusCode = 503;
+      if (apiKey) {
+        try {
+          const listUrl = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId=${encodeURIComponent(playlistId)}&key=${apiKey}`;
+          const listRes = await fetch(listUrl);
+
+          if (listRes.ok) {
+            const listData = await listRes.json();
+            const items = (listData.items || []).map((item, idx) => ({
+              index: idx + 1,
+              videoId: item.snippet?.resourceId?.videoId,
+              title: item.snippet?.title || 'Untitled',
+              channel: item.snippet?.channelTitle || '',
+              thumbnail: item.snippet?.thumbnails?.medium?.url || item.snippet?.thumbnails?.default?.url || ''
+            })).filter(item => Boolean(item.videoId));
+
+            if (items.length > 0) {
+              res.statusCode = 200;
+              res.setHeader('Content-Type', 'application/json');
+              res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=86400');
+              res.end(JSON.stringify({
+                playlistId,
+                totalItems: items.length,
+                items,
+                source: 'youtube_v3'
+              }));
+              return;
+            }
+          } else {
+            console.warn(`[API:YouTube] YouTube v3 playlist API returned ${listRes.status}, falling back to public extraction`);
+          }
+        } catch (apiErr) {
+          console.warn('[API:YouTube] YouTube v3 playlist error:', apiErr.message);
+        }
+      }
+
+      // Public fallback: Scraper / RSS (zero API key required)
+      const { scrapeYouTubePlaylistPage, fetchYouTubePlaylistRss } = require('./playlist.js');
+      let scraped = await scrapeYouTubePlaylistPage(playlistId, 50);
+      if (!scraped) {
+        scraped = await fetchYouTubePlaylistRss(playlistId);
+      }
+
+      if (scraped && scraped.items && scraped.items.length > 0) {
+        res.statusCode = 200;
         res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=86400');
         res.end(JSON.stringify({
-          error: 'Configuration Required',
-          message: 'YOUTUBE_API_KEY environment variable is required to resolve YouTube playlists.'
+          playlistId,
+          totalItems: scraped.items.length,
+          items: scraped.items.map((it, idx) => ({
+            index: idx + 1,
+            videoId: it.videoId,
+            title: it.title,
+            channel: it.channel,
+            thumbnail: it.thumbnail
+          })),
+          source: scraped.source || 'public_fallback'
         }));
         return;
       }
 
-      const listUrl = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId=${encodeURIComponent(playlistId)}&key=${apiKey}`;
-      const listRes = await fetch(listUrl);
-
-      if (!listRes.ok) {
-        res.statusCode = listRes.status === 404 ? 404 : 502;
-        res.setHeader('Content-Type', 'application/json');
-        res.end(JSON.stringify({
-          error: 'Playlist Lookup Failed',
-          message: `Could not retrieve playlist '${playlistId}'. It may be private or invalid.`
-        }));
-        return;
-      }
-
-      const listData = await listRes.json();
-      const items = (listData.items || []).map((item, idx) => ({
-        index: idx + 1,
-        videoId: item.snippet?.resourceId?.videoId,
-        title: item.snippet?.title || 'Untitled',
-        channel: item.snippet?.channelTitle || '',
-        thumbnail: item.snippet?.thumbnails?.medium?.url || item.snippet?.thumbnails?.default?.url || ''
-      })).filter(item => Boolean(item.videoId));
-
-      res.statusCode = 200;
+      res.statusCode = 404;
       res.setHeader('Content-Type', 'application/json');
-      res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=86400');
       res.end(JSON.stringify({
-        playlistId,
-        totalItems: items.length,
-        items,
-        source: 'youtube_v3'
+        error: 'Playlist Unavailable',
+        message: `Could not retrieve playlist '${playlistId}'. It may be private, deleted, or empty.`
       }));
       return;
     }

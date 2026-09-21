@@ -30,4 +30,5 @@ yarn-error.log*
 
 # OS Artifacts
 .DS_Store
+
 Thumbs.db
